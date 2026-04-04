@@ -46,16 +46,33 @@ thd75-serial-cipher encrypt plain.bin -o packet.bin
 thd75-serial-cipher verify
 ```
 
+### Extract voice prompts as WAV
+
+```bash
+thd75-extract-voice ./extracted/DATA_0160_0x01600000.bin ./prompts/
+thd75-extract-voice ./extracted/DATA_0160_0x01600000.bin ./prompts/ --lang en
+```
+
+Extracts 749 voice prompts (327 English, 356 Japanese, 66 Chinese) as 8 kHz mono WAV files.
+
+### Extract display images as PNG
+
+```bash
+thd75-extract-images ./extracted/IMAGE_DATA_0x00600000.bin ./images/
+```
+
+Extracts 862 PNG images (APRS symbols, status icons, splash screens, UI elements).
+
 ## Extracted Sections
 
 | Section | Flash Address | Size | Content |
 |---------|--------------|------|---------|
 | FIRMWARE | 0x00200000 | 2.5 MB | ARM926EJ-S executable (OMAP-L138) |
-| IMAGE_DATA | 0x00600000 | 384 KB | 862 PNG display images |
+| IMAGE_DATA | 0x00600000 | 357 KB | 862 PNG display images |
 | DATA_00E0 | 0x00E00000 | 1.0 MB | TI C6748 AMBE2+ DSP firmware |
-| DATA_0100 | 0x01000000 | 10.0 MB | Voice prompt database (8-bit PCM) |
-| FONT_DATA | 0x01500000 | 768 KB | Shift-JIS display fonts |
-| CHECKBYTES | 0x00200062 | 2 B | Bootloader integrity checksum |
+| DATA_0160 | 0x01600000 | 10.0 MB | Voice prompt database (8-bit PCM, 8 kHz) |
+| FONT_DATA | 0x01500000 | 736 KB | Shift-JIS display fonts (6,962 glyphs) |
+| CHECKBYTES | 0x00200062 | 2 B | Bootloader integrity checksum (0xB01D in V1.03) |
 | FINAL_ZZZ | 0x00200040 | 32 B | Build marker confirming update completion |
 
 ## Legal Disclaimer

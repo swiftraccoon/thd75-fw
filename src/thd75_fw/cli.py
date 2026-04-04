@@ -6,10 +6,15 @@ import argparse
 import sys
 from pathlib import Path
 
-from . import file_cipher, intel_hex, resource, serial_cipher
+from . import file_cipher, images, intel_hex, resource, serial_cipher, voice
 from .sections import SECTIONS, name_for_address
 
-__all__: list[str] = ["main_extract", "main_serial_cipher"]
+__all__: list[str] = [
+    "main_extract",
+    "main_extract_images",
+    "main_extract_voice",
+    "main_serial_cipher",
+]
 
 # ── thd75-extract ──────────────────────────────────────────────────
 
@@ -214,3 +219,76 @@ def _hexdump(data: bytes, width: int = 16) -> None:
         hex_part: str = " ".join(f"{b:02X}" for b in chunk)
         ascii_part: str = "".join(chr(b) if 32 <= b < 127 else "." for b in chunk)
         print(f"  {offset:04X}: {hex_part:<{width * 3}}  {ascii_part}")
+
+
+# ── thd75-extract-voice ──────────────────────────────────────────
+
+
+def main_extract_voice() -> None:
+    """Extract voice prompts from a TH-D75 DATA_0160 binary."""
+    parser = argparse.ArgumentParser(
+        prog="thd75-extract-voice",
+        description="Extract voice prompts as WAV files from DATA_0160",
+    )
+    parser.add_argument("input", type=Path, help="Path to DATA_0160 .bin file")
+    parser.add_argument("output", type=Path, help="Output directory for WAV files")
+    parser.add_argument(
+        "--lang", choices=["en", "ja", "zh", "all"], default="all",
+        help="Language to extract (default: all)",
+    )
+    args = parser.parse_args()
+
+    data: bytes = args.input.read_bytes()
+    db: voice.PromptDatabase = voice.load(data)
+
+    print(f"Voice Prompt Database: {db.model_id} / {db.engine_version}")
+    print(f"  {len(db.prompts)} prompts, {db.total_duration_ms / 1000:.1f}s total")
+
+    for lang in ("en", "ja", "zh"):
+        prompts = db.by_language(lang)
+        total_ms = sum(p.duration_ms for p in prompts)
+        print(f"  {lang}: {len(prompts)} prompts, {total_ms / 1000:.1f}s")
+
+    args.output.mkdir(parents=True, exist_ok=True)
+
+    prompts_to_export = db.prompts
+    if args.lang != "all":
+        prompts_to_export = db.by_language(args.lang)
+
+    for prompt in prompts_to_export:
+        wav_path = args.output / f"{prompt.index:03d}_{prompt.language}_{prompt.duration_ms}ms.wav"
+        prompt.to_wav(wav_path)
+
+    print(f"\nExported {len(prompts_to_export)} WAV files to {args.output}/")
+
+
+# ── thd75-extract-images ─────────────────────────────────────────
+
+
+def main_extract_images() -> None:
+    """Extract PNG images from a TH-D75 IMAGE_DATA binary."""
+    parser = argparse.ArgumentParser(
+        prog="thd75-extract-images",
+        description="Extract PNG images from IMAGE_DATA section",
+    )
+    parser.add_argument("input", type=Path, help="Path to IMAGE_DATA .bin file")
+    parser.add_argument("output", type=Path, help="Output directory for PNG files")
+    args = parser.parse_args()
+
+    data: bytes = args.input.read_bytes()
+    db: images.ImageDatabase = images.load(data)
+
+    print(f"Image Database: {db.version}")
+    print(f"  {len(db.images)} images, {db.valid_count} valid PNGs")
+
+    args.output.mkdir(parents=True, exist_ok=True)
+
+    exported: int = 0
+    for img in db.images:
+        if not img.is_valid_png:
+            continue
+        png_path = args.output / f"{img.index:03d}.png"
+        img.save(png_path)
+        exported += 1
+
+    print(f"\nExported {exported} PNG files to {args.output}/")

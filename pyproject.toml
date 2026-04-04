@@ -29,6 +29,8 @@ Issues = "https://github.com/swiftraccoon/thd75-fw/issues"
 
 [project.scripts]
 thd75-extract = "thd75_fw.cli:main_extract"
+thd75-extract-voice = "thd75_fw.cli:main_extract_voice"
+thd75-extract-images = "thd75_fw.cli:main_extract_images"
 thd75-serial-cipher = "thd75_fw.cli:main_serial_cipher"
 
 [tool.hatch.build.targets.wheel]
