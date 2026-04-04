@@ -71,7 +71,7 @@ def _run_extract(
         total_records += parsed.record_count
 
         if parsed.data:
-            section_addr: int = SECTIONS[block_idx].flash_address if block_idx < len(SECTIONS) else block_idx
+            section_addr: int = _extract_flash_address(block, block_idx)
             sections[section_addr] = bytes(parsed.data)
 
     print(f"  Total records: {total_records:,}")
@@ -105,6 +105,27 @@ def _run_extract(
             sys.exit(1)
 
     print("\nDone.")
+
+
+_DDR_BASE: int = 0x6000_0000
+
+
+def _extract_flash_address(block: file_cipher.DecryptedBlock, fallback_idx: int) -> int:
+    """Extract flash address from block metadata ($SA field).
+
+    The updater stores addresses with a 0x60000000 DDR base offset.
+    Falls back to the SECTIONS table if metadata is unavailable.
+    """
+    for meta_line in block.metadata:
+        meta_line = meta_line.strip()
+        if meta_line.startswith("$SA="):
+            val: str = meta_line[4:]
+            stored_addr: int = int(val, 16) if val.startswith("0x") else int(val)
+            return stored_addr - _DDR_BASE
+    # Fallback: use hardcoded section order
+    if fallback_idx < len(SECTIONS):
+        return SECTIONS[fallback_idx].flash_address
+    return fallback_idx
 
 
 def _verify(output_dir: Path, reference_dir: Path) -> bool:

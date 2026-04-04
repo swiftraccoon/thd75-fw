@@ -53,8 +53,8 @@ SECTIONS: tuple[SectionInfo, ...] = (
         description="TI C6748 AMBE2+ DSP firmware",
     ),
     SectionInfo(
-        name="DATA_0100",
-        flash_address=0x0100_0000,
+        name="DATA_0160",
+        flash_address=0x0160_0000,
         expected_size=10_485_760,
         description="Voice prompt database (8-bit PCM, 8 kHz, 3 languages)",
     ),
