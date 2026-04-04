@@ -1,0 +1,68 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "thd75-fw"
+version = "0.1.0"
+description = "Kenwood TH-D75 firmware extraction and cipher tools"
+requires-python = ">=3.10"
+license = "GPL-3.0-only"
+authors = [{ name = "Swift Raccoon", email = "47705353+swiftraccoon@users.noreply.github.com" }]
+readme = "README.md"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Communications :: Ham Radio",
+    "Topic :: Security :: Cryptography",
+    "Typing :: Typed",
+]
+
+[project.urls]
+Repository = "https://github.com/swiftraccoon/thd75-fw"
+Issues = "https://github.com/swiftraccoon/thd75-fw/issues"
+
+[project.scripts]
+thd75-extract = "thd75_fw.cli:main_extract"
+thd75-serial-cipher = "thd75_fw.cli:main_serial_cipher"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/thd75_fw"]
+
+[dependency-groups]
+dev = ["pytest", "ruff", "mypy", "pyright"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.mypy]
+strict = true
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "UP",   # pyupgrade
+    "ANN",  # flake8-annotations
+    "RUF",  # ruff-specific
+    "TCH",  # type-checking imports
+]
+ignore = [
+    "E501",  # line length handled by formatter; subst table needs wide lines
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["thd75_fw"]

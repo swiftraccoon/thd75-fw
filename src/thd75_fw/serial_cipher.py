@@ -1,0 +1,147 @@
+"""Serial transfer cipher for the TH-D75 firmware update protocol.
+
+Reverse-engineered from ``Form1::b()`` (encrypt) and ``Form1::a()``
+(decrypt) in THD75_Updater_E v1.03.000, decompiled with ILSpy.
+
+This cipher protects USB serial packets during firmware updates. It is
+completely independent of the file-storage cipher.
+
+Encrypt (per byte)::
+
+    index       = (key + plaintext) & 0xFF
+    substituted = SUBST_TABLE[index]
+    xored       = substituted ^ key
+    ciphertext  = ROL3(xored)
+
+Decrypt (per byte)::
+
+    rotated   = ROR3(ciphertext)
+    xored     = rotated ^ key
+    index     = REVERSE_TABLE[xored]
+    plaintext = (index - key) & 0xFF
+
+The key is set to ``0x75`` during the firmware update handshake.
+A key of ``0x00`` disables encryption (passthrough).
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+__all__: list[str] = [
+    "DEFAULT_KEY",
+    "SubstitutionTable",
+    "decrypt",
+    "encrypt",
+    "verify_round_trip",
+]
+
+# fmt: off
+_SUBST_TABLE: bytes = bytes([
+    0x5B, 0xCD, 0xEF, 0x41, 0x4F, 0x7D, 0x00, 0x99, 0x5E, 0xC8, 0x49, 0xA8, 0x6F, 0x20, 0xB4, 0x7C,
+    0xA2, 0x5A, 0x3D, 0x54, 0xE1, 0xF2, 0xB2, 0x55, 0x4B, 0xAE, 0xC4, 0x56, 0x0C, 0xF7, 0x6A, 0xA7,
+    0x77, 0xBA, 0x4C, 0x87, 0x28, 0x9B, 0x3E, 0x4E, 0x8D, 0x8E, 0xEA, 0xD2, 0x7A, 0x36, 0xFE, 0xFF,
+    0x1B, 0x9A, 0x7B, 0x2E, 0x9F, 0xE0, 0x98, 0xB8, 0xCF, 0xBD, 0x1D, 0x86, 0x69, 0x08, 0x06, 0x68,
+    0x8F, 0x07, 0xDC, 0x22, 0xC2, 0x74, 0x89, 0x58, 0x6B, 0x35, 0x38, 0x1F, 0x6E, 0x31, 0x4A, 0x7E,
+    0x24, 0x5C, 0x5F, 0x6C, 0xAB, 0xF6, 0x10, 0xBF, 0xF1, 0xE6, 0xC1, 0x13, 0x97, 0x29, 0xA9, 0x1A,
+    0x01, 0x88, 0x62, 0xC9, 0x0B, 0x71, 0x40, 0x0D, 0x6D, 0xCC, 0x83, 0x0A, 0xB5, 0x91, 0x17, 0xEB,
+    0x3F, 0x9E, 0x5D, 0xCB, 0x64, 0xED, 0xB6, 0x4D, 0xE5, 0xDA, 0x32, 0x9C, 0x34, 0xC7, 0x2C, 0x59,
+    0x79, 0xC6, 0xE7, 0xC0, 0x47, 0x18, 0xAC, 0x1C, 0xE8, 0x8A, 0x15, 0xB7, 0xF3, 0xBC, 0x21, 0xC5,
+    0x02, 0xD9, 0xDD, 0xC3, 0x8C, 0x09, 0x45, 0xD5, 0x2F, 0x78, 0x04, 0xCA, 0x52, 0x2A, 0x26, 0x11,
+    0x8B, 0xF8, 0xB1, 0x19, 0x61, 0xD7, 0x76, 0x57, 0x51, 0xFB, 0xDB, 0x42, 0xFD, 0x82, 0xE4, 0xB0,
+    0xFA, 0x14, 0xAA, 0x65, 0x80, 0xB9, 0xDF, 0x94, 0x48, 0x66, 0x30, 0xD3, 0xF0, 0xE2, 0x1E, 0xBB,
+    0x72, 0xA6, 0xA5, 0x67, 0x90, 0x53, 0x50, 0xEE, 0x84, 0x81, 0xBE, 0x3B, 0xF4, 0xD0, 0x95, 0x0F,
+    0x63, 0x37, 0x12, 0xEC, 0xF5, 0x70, 0xD8, 0xD4, 0x0E, 0x7F, 0xD1, 0x2D, 0xB3, 0x85, 0x03, 0x39,
+    0x73, 0xE9, 0x16, 0x46, 0x92, 0xAF, 0x25, 0x93, 0x23, 0x44, 0xFC, 0xA4, 0xF9, 0xAD, 0x96, 0xCE,
+    0x2B, 0x60, 0x9D, 0x75, 0xDE, 0x3C, 0xA0, 0x3A, 0x43, 0xA3, 0x33, 0xE3, 0x05, 0xD6, 0xA1, 0x27,
+])
+# fmt: on
+
+DEFAULT_KEY: int = 0x75
+
+
+@dataclass(frozen=True, slots=True)
+class SubstitutionTable:
+    """A 256-byte permutation table with precomputed reverse lookup."""
+
+    forward: bytes
+    reverse: tuple[int, ...]
+
+    @classmethod
+    def from_bytes(cls, table: bytes) -> SubstitutionTable:
+        """Build a ``SubstitutionTable`` from a 256-byte permutation."""
+        if len(table) != 256 or sorted(table) != list(range(256)):
+            msg = "Table must be a 256-byte permutation (each value 0-255 exactly once)"
+            raise ValueError(msg)
+        rev: list[int] = [0] * 256
+        for idx, val in enumerate(table):
+            rev[val] = idx
+        return cls(forward=table, reverse=tuple(rev))
+
+
+# Module-level singleton — built once, reused for all operations.
+_TABLE: SubstitutionTable = SubstitutionTable.from_bytes(_SUBST_TABLE)
+
+
+def _rol3(byte: int) -> int:
+    """Rotate a byte left by 3 bits."""
+    return ((byte << 3) | (byte >> 5)) & 0xFF
+
+
+def _ror3(byte: int) -> int:
+    """Rotate a byte right by 3 bits."""
+    return ((byte >> 3) | (byte << 5)) & 0xFF
+
+
+def encrypt(data: bytes | bytearray, key: int = DEFAULT_KEY) -> bytes:
+    """Encrypt a block with the serial transfer cipher.
+
+    Args:
+        data: Plaintext bytes.
+        key: Single-byte key (default ``0x75``). ``0`` = passthrough.
+
+    Returns:
+        Ciphertext bytes (same length as input).
+    """
+    if key == 0:
+        return bytes(data)
+    table: bytes = _TABLE.forward
+    out = bytearray(len(data))
+    for i, plain_byte in enumerate(data):
+        idx: int = (key + plain_byte) & 0xFF
+        out[i] = _rol3(table[idx] ^ key)
+    return bytes(out)
+
+
+def decrypt(data: bytes | bytearray, key: int = DEFAULT_KEY) -> bytes:
+    """Decrypt a block with the serial transfer cipher.
+
+    Args:
+        data: Ciphertext bytes.
+        key: Single-byte key (default ``0x75``). ``0`` = passthrough.
+
+    Returns:
+        Plaintext bytes (same length as input).
+    """
+    if key == 0:
+        return bytes(data)
+    rev: tuple[int, ...] = _TABLE.reverse
+    out = bytearray(len(data))
+    for i, cipher_byte in enumerate(data):
+        xored: int = _ror3(cipher_byte) ^ key
+        out[i] = (rev[xored] - key) & 0xFF
+    return bytes(out)
+
+
+def verify_round_trip(key: int = DEFAULT_KEY) -> None:
+    """Assert encrypt→decrypt round-trip for all 256 single-byte values.
+
+    Raises:
+        AssertionError: If any byte fails the round-trip.
+    """
+    for b in range(256):
+        plain = bytes([b])
+        result: bytes = decrypt(encrypt(plain, key), key)
+        assert result == plain, (
+            f"Round-trip failed for 0x{b:02X} with key 0x{key:02X}"
+        )
