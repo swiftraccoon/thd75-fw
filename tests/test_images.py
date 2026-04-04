@@ -2,7 +2,7 @@
 
 import struct
 
-from thd75_fw.images import Image, ImageDatabase, load
+from thd75_fw.images import Image, load
 
 # Minimal valid PNG: 1x1 pixel grayscale
 _MINIMAL_PNG = (
@@ -61,7 +61,7 @@ class TestLoad:
     def test_too_small_raises(self) -> None:
         try:
             load(b"\x00" * 10)
-            assert False, "Should have raised"
+            raise AssertionError("Should have raised")
         except ValueError:
             pass
 

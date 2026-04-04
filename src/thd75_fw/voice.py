@@ -13,7 +13,7 @@ prompts. After that, digits/letters use 10-step spacing.
 File layout::
 
     0x0000-0x003F  Header (model ID, engine version, entry count)
-    0x0040-0x0BF3  Index table (749 × 4-byte LE cumulative offsets)
+    0x0040-0x0BF3  Index table (749 x 4-byte LE cumulative offsets)
     0x0BF4-0x0BF7  End marker (total indexed audio size)
     0x0BF8-EOF     Audio data (8-bit signed PCM, 8 kHz mono)
 """
@@ -23,7 +23,10 @@ from __future__ import annotations
 import struct
 import wave
 from dataclasses import dataclass
-from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 __all__: list[str] = [
     "AUDIO_BASE",

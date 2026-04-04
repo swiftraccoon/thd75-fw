@@ -7,7 +7,6 @@ from thd75_fw.voice import (
     INDEX_TABLE_OFFSET,
     SAMPLE_RATE,
     Prompt,
-    PromptDatabase,
     load,
 )
 
@@ -52,7 +51,7 @@ class TestLoad:
     def test_too_small_raises(self) -> None:
         try:
             load(b"\x00" * 10)
-            assert False, "Should have raised"
+            raise AssertionError("Should have raised")
         except ValueError:
             pass
 

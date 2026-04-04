@@ -68,12 +68,14 @@ Extracts 862 PNG images (APRS symbols, status icons, splash screens, UI elements
 | Section | Flash Address | Size | Content |
 |---------|--------------|------|---------|
 | FIRMWARE | 0x00200000 | 2.5 MB | ARM926EJ-S executable (OMAP-L138) |
-| IMAGE_DATA | 0x00600000 | 357 KB | 862 PNG display images |
-| DATA_00E0 | 0x00E00000 | 1.0 MB | TI C6748 AMBE2+ DSP firmware |
-| DATA_0160 | 0x01600000 | 10.0 MB | Voice prompt database (8-bit PCM, 8 kHz) |
-| FONT_DATA | 0x01500000 | 736 KB | Shift-JIS display fonts (6,962 glyphs) |
 | CHECKBYTES | 0x00200062 | 2 B | Bootloader integrity checksum (0xB01D in V1.03) |
 | FINAL_ZZZ | 0x00200040 | 32 B | Build marker confirming update completion |
+| IMAGE_DATA | 0x00600000 | 357 KB | 862 PNG display images |
+| DATA_00E0 | 0x00E00000 | 1.0 MB | TI C6748 AMBE2+ DSP firmware |
+| FONT_DATA | 0x01500000 | 736 KB | Shift-JIS display fonts (6,962 glyphs) |
+| DATA_0160 | 0x01600000 | 10.0 MB | Voice prompt database (8-bit PCM, 8 kHz) |
+
+CHECKBYTES and FINAL_ZZZ are patched into the FIRMWARE region's exception vector padding (0x40-0x7F) after the main firmware write completes.
 
 ## Legal Disclaimer
 

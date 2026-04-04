@@ -7,7 +7,7 @@ and UI elements in various sizes from 1x10 to 240x180 pixels.
 File layout::
 
     0x0000-0x002F  Header (version string, data size, table offsets)
-    0x0030-0x0DA7  PNG offset table (862 × 4-byte LE offsets)
+    0x0030-0x0DA7  PNG offset table (862 x 4-byte LE offsets)
     0x0DA8-EOF     PNG image data (concatenated, individually valid PNGs)
 """
 
@@ -15,7 +15,10 @@ from __future__ import annotations
 
 import struct
 from dataclasses import dataclass
-from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 __all__: list[str] = [
     "Image",
