@@ -31,27 +31,42 @@ _DEFAULT_KEY: int = 39
 _DEFAULT_STEP: int = 39
 
 
-@dataclass
 class RollingKeyState:
     """Mutable state for the rolling-key cipher.
 
-    The key advances by ``step`` after every byte processed.
-    It wraps at 256 (single-byte arithmetic).
+    The key advances by ``step`` after every byte processed and wraps at 256.
+    Both fields are kept private to enforce the single-byte invariant
+    (``0 <= value < 256``); read them via the ``key`` and ``step`` properties.
+    Mutate only through ``advance()``. To start a new stream, construct a
+    fresh ``RollingKeyState()`` instance.
     """
 
-    key: int = _DEFAULT_KEY
-    step: int = _DEFAULT_STEP
+    __slots__ = ("_key", "_step")
+
+    def __init__(self, key: int = _DEFAULT_KEY, step: int = _DEFAULT_STEP) -> None:
+        if not 0 <= key < 256:
+            raise ValueError(f"key must be 0..255, got {key}")
+        if not 0 <= step < 256:
+            raise ValueError(f"step must be 0..255, got {step}")
+        self._key: int = key
+        self._step: int = step
+
+    @property
+    def key(self) -> int:
+        """Current rolling key value (0-255)."""
+        return self._key
+
+    @property
+    def step(self) -> int:
+        """Step amount applied by ``advance()`` (0-255)."""
+        return self._step
 
     def advance(self) -> None:
         """Advance the rolling key by one step."""
-        self.key = (self.key + self.step) & 0xFF
-
-    def reset(self) -> None:
-        """Reset to initial state."""
-        self.key = _DEFAULT_KEY
+        self._key = (self._key + self._step) & 0xFF
 
 
-def decrypt_line(line: str, state: RollingKeyState) -> tuple[str, str]:
+def decrypt_line(line: str, state: RollingKeyState) -> tuple[str, bytes]:
     """Decrypt a single line from the firmware resource.
 
     Args:
@@ -59,45 +74,72 @@ def decrypt_line(line: str, state: RollingKeyState) -> tuple[str, str]:
         state: Rolling cipher state — mutated in place.
 
     Returns:
-        A ``(line_type, hex_output)`` tuple where ``line_type`` is
+        A ``(line_type, decrypted)`` tuple where ``line_type`` is
         ``"$"`` for metadata lines, ``"D"`` for data lines, or
-        ``""`` for empty/invalid lines. ``hex_output`` is the
-        decrypted content as an uppercase hex string.
+        ``""`` for empty input. ``decrypted`` is the plaintext bytes.
+
+    Raises:
+        ValueError: If the line has odd-length data or contains
+            non-hex characters. Both indicate stream corruption;
+            silently skipping would desync the rolling key for all
+            subsequent lines.
     """
-    if len(line) < 3:
-        return ("", "")
+    if not line:
+        return ("", b"")
 
     line_type: str = "$" if line[0] == "$" else "D"
-    hex_parts: list[str] = []
-    pair_index: int = 1  # 1-based per the original C#
+    data_chars: str = line[1:]
+    if not data_chars:
+        return (line_type, b"")
 
-    pos: int = 1  # skip the first char (type marker)
-    while pos + 1 < len(line):
+    if len(data_chars) % 2:
+        raise ValueError(
+            f"Encrypted line has odd-length data ({len(data_chars)} chars "
+            f"after type marker): {line!r}"
+        )
+
+    decrypted = bytearray()
+    # Iterate over consecutive 2-char hex pairs in the line's data section
+    # (everything after the type marker at index 0). The 1-based pair_index
+    # matches the original C# code's loop counter, used to alternate the
+    # 0x00/0xFF inversion mask per pair.
+    for pair_index, pair_start in enumerate(
+        range(1, len(line), 2), start=1,
+    ):
+        hex_pair = line[pair_start : pair_start + 2]
         try:
-            raw: int = int(line[pos : pos + 2], 16)
-        except ValueError:
-            break
+            raw_byte: int = int(hex_pair, 16)
+        except ValueError as exc:
+            raise ValueError(
+                f"Non-hex characters at position {pair_start} in encrypted "
+                f"line: {hex_pair!r}"
+            ) from exc
 
-        xored: int = raw ^ ((pair_index & 1) * 0xFF)
-        plain: int = (xored - state.key) & 0xFF
-        hex_parts.append(f"{plain:02X}")
+        xored: int = raw_byte ^ ((pair_index & 1) * 0xFF)
+        plaintext_byte: int = (xored - state.key) & 0xFF
+        decrypted.append(plaintext_byte)
         state.advance()
 
-        pos += 2
-        pair_index += 1
-
-    return (line_type, "".join(hex_parts))
+    return (line_type, bytes(decrypted))
 
 
 @dataclass(frozen=True, slots=True)
 class DecryptedBlock:
     """One firmware section's decrypted data and metadata."""
 
-    data_hex: str
-    """Hex string of Intel HEX records for this section."""
+    data: bytes
+    """Raw plaintext bytes of Intel HEX records for this section.
+
+    Pass to ``thd75_fw.intel_hex.parse()`` to reconstruct the section's
+    in-memory image from the packed records.
+    """
 
     metadata: tuple[str, ...]
-    """Decrypted metadata strings for this section."""
+    """Decrypted metadata strings for this section.
+
+    Includes ``$SA=`` (start address) among other fields; see
+    ``cli._extract_flash_address`` for parsing.
+    """
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,9 +150,9 @@ class DecryptedResource:
     """Each block corresponds to one firmware section."""
 
     @property
-    def data_hex(self) -> str:
-        """Concatenated hex from all blocks (for single-stream parsing)."""
-        return "".join(b.data_hex for b in self.blocks)
+    def data(self) -> bytes:
+        """Concatenated bytes from all blocks (for single-stream parsing)."""
+        return b"".join(b.data for b in self.blocks)
 
     @property
     def metadata(self) -> tuple[str, ...]:
@@ -135,40 +177,36 @@ def decrypt_resource(resource_text: str) -> DecryptedResource:
     """
     state = RollingKeyState()
     blocks: list[DecryptedBlock] = []
-    current_meta: list[str] = []
-    current_data: list[str] = []
+    pending_metadata: list[str] = []
+    pending_data = bytearray()
 
-    for line in resource_text.split("\n"):
-        line = line.strip("\r").strip()
-        if not line:
+    for raw_line in resource_text.split("\n"):
+        stripped = raw_line.strip("\r").strip()
+        if not stripped:
             continue
 
-        line_type, hex_output = decrypt_line(line, state)
+        line_type, line_bytes = decrypt_line(stripped, state)
 
         if line_type == "$":
-            # New metadata line — if we have accumulated data, finalize block
-            if current_data:
+            # A new metadata line marks the boundary between blocks. If we've
+            # accumulated data for the previous block, finalize it before
+            # starting fresh accumulators for the new block.
+            if pending_data:
                 blocks.append(DecryptedBlock(
-                    data_hex="".join(current_data),
-                    metadata=tuple(current_meta),
+                    data=bytes(pending_data),
+                    metadata=tuple(pending_metadata),
                 ))
-                current_meta = []
-                current_data = []
-            try:
-                meta_bytes: bytes = bytes.fromhex(hex_output)
-                current_meta.append(
-                    meta_bytes.decode("ascii", errors="replace")
-                )
-            except ValueError:
-                current_meta.append(hex_output)
+                pending_metadata = []
+                pending_data = bytearray()
+            pending_metadata.append(line_bytes.decode("ascii", errors="replace"))
         elif line_type == "D":
-            current_data.append(hex_output)
+            pending_data.extend(line_bytes)
 
-    # Finalize the last block
-    if current_data:
+    # Finalize the last block (no trailing $ line follows it).
+    if pending_data:
         blocks.append(DecryptedBlock(
-            data_hex="".join(current_data),
-            metadata=tuple(current_meta),
+            data=bytes(pending_data),
+            metadata=tuple(pending_metadata),
         ))
 
     return DecryptedResource(blocks=tuple(blocks))

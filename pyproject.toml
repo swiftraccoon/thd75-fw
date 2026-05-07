@@ -4,15 +4,21 @@ build-backend = "hatchling.build"
 
 [project]
 name = "thd75-fw"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Kenwood TH-D75 firmware extraction and cipher tools"
 requires-python = ">=3.10"
 license = "GPL-3.0-only"
 authors = [{ name = "Swift Raccoon", email = "47705353+swiftraccoon@users.noreply.github.com" }]
 readme = "README.md"
+keywords = ["kenwood", "th-d75", "amateur-radio", "ham-radio", "firmware", "reverse-engineering", "cipher"]
+# License classifier intentionally omitted — PEP 639 SPDX expression above
+# is the canonical form; the classifier is redundant under metadata 2.4+.
 classifiers = [
     "Development Status :: 3 - Alpha",
-    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Telecommunications Industry",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -20,12 +26,15 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Topic :: Communications :: Ham Radio",
     "Topic :: Security :: Cryptography",
+    "Topic :: System :: Hardware",
     "Typing :: Typed",
 ]
 
 [project.urls]
+Homepage = "https://github.com/swiftraccoon/thd75-fw"
 Repository = "https://github.com/swiftraccoon/thd75-fw"
 Issues = "https://github.com/swiftraccoon/thd75-fw/issues"
+Changelog = "https://github.com/swiftraccoon/thd75-fw/blob/main/CHANGELOG.md"
 
 [project.scripts]
 thd75-extract = "thd75_fw.cli:main_extract"
@@ -33,14 +42,18 @@ thd75-extract-voice = "thd75_fw.cli:main_extract_voice"
 thd75-extract-images = "thd75_fw.cli:main_extract_images"
 thd75-serial-cipher = "thd75_fw.cli:main_serial_cipher"
 
+[tool.hatch.version]
+path = "src/thd75_fw/__init__.py"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/thd75_fw"]
 
 [dependency-groups]
-dev = ["pytest", "ruff", "mypy", "pyright"]
+dev = ["pytest", "pytest-cov", "ruff", "mypy", "pyright", "hypothesis"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["tests"]
 
 [tool.mypy]
 strict = true

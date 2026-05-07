@@ -1,0 +1,54 @@
+name: Release to PyPI
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build distributions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Verify tag matches package version
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          TAG="${REF#refs/tags/v}"
+          PKG=$(grep -E '^__version__' src/thd75_fw/__init__.py | cut -d'"' -f2)
+          if [ "$TAG" != "$PKG" ]; then
+            echo "::error::tag v$TAG does not match __version__ $PKG"
+            exit 1
+          fi
+          echo "tag v$TAG matches package version $PKG"
+      - run: pip install build twine
+      - run: python -m build
+      - run: python -m twine check dist/*
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/thd75-fw
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          attestations: true

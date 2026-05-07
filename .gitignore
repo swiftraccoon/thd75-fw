@@ -9,3 +9,7 @@ build/
 .ruff_cache/
 .pytest_cache/
 .mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+ref/

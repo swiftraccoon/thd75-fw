@@ -13,10 +13,22 @@ from pathlib import Path
 __all__: list[str] = ["load"]
 
 _HEX_CHARS: frozenset[int] = frozenset(b"0123456789abcdefABCDEF")
+_DOLLAR_BYTE: int = ord("$")
 
 _ILSPY_RESOURCE_NAME: str = "THD75_Updater_E.Resources.TH-D75_Firm_E.txt"
 
 _MIN_RESOURCE_SIZE: int = 1_000_000  # Must be > 1 MB to be valid
+
+
+def _is_resource_line(line: bytes) -> bool:
+    """Return True if ``line`` looks like a resource line: hex chars only,
+    optionally with a leading ``$`` for metadata lines.
+
+    The resource is pure ASCII hex pairs interleaved with ``$``-prefixed
+    metadata lines, so any byte outside ``[0-9a-fA-F$]`` disqualifies a
+    candidate region.
+    """
+    return all(c in _HEX_CHARS or c == _DOLLAR_BYTE for c in line)
 
 
 def load(exe_path: Path) -> str:
@@ -36,10 +48,10 @@ def load(exe_path: Path) -> str:
         ValueError: If the resource cannot be found in the PE.
     """
     exe_path = Path(exe_path)
-    if not exe_path.exists():
-        raise FileNotFoundError(exe_path)
 
-    # Prefer pre-extracted resource (much faster, no scanning)
+    # Prefer pre-extracted resource (much faster, no scanning).
+    # If the .exe doesn't exist, _scan_pe's read_bytes() raises
+    # FileNotFoundError with .filename properly populated for callers.
     ilspy_path: Path = exe_path.parent / _ILSPY_RESOURCE_NAME
     if ilspy_path.exists():
         return ilspy_path.read_text(encoding="utf-8")
@@ -56,24 +68,31 @@ def _scan_pe(exe_path: Path) -> str:
     """
     data: bytes = exe_path.read_bytes()
 
-    for i in range(len(data) - 100):
-        if data[i] != ord("$"):
+    for candidate_start in range(len(data) - 100):
+        if data[candidate_start] != _DOLLAR_BYTE:
             continue
 
-        # Check for a valid ``$`` + hex metadata line
-        line_end: int = data.find(b"\r\n", i)
+        # Check for a valid ``$`` + hex metadata line at this candidate.
+        line_end: int = data.find(b"\r\n", candidate_start)
         if line_end < 0:
-            line_end = data.find(b"\n", i)
-        if line_end < 0 or line_end - i < 4:
+            line_end = data.find(b"\n", candidate_start)
+        if line_end < 0 or line_end - candidate_start < 4:
             continue
 
-        line: bytes = data[i:line_end]
-        if not all(c in _HEX_CHARS or c == ord("$") for c in line):
+        if not _is_resource_line(data[candidate_start:line_end]):
             continue
 
-        # Found a candidate — scan forward for the end
+        # Found a candidate — scan forward for the end of the resource region
         end: int = _find_end(data, line_end)
-        text: str = data[i:end].decode("ascii", errors="replace")
+        # Strict ASCII: the resource is supposed to be pure ASCII hex/$ markers.
+        # A UnicodeDecodeError here means we found a false-positive region;
+        # let the caller see the failure rather than silently substituting.
+        try:
+            text: str = data[candidate_start:end].decode(
+                "ascii", errors="strict",
+            )
+        except UnicodeDecodeError:
+            continue
 
         if len(text) >= _MIN_RESOURCE_SIZE:
             return text
@@ -101,17 +120,12 @@ def _find_end(data: bytes, start: int) -> int:
             pos = next_nl
             continue
 
-        # Hex data lines and ``$`` metadata lines are part of the resource
-        if all(c in _HEX_CHARS for c in line):
-            pos = next_nl
-            continue
-        if line[0:1] == b"$" and all(
-            c in _HEX_CHARS or c == ord("$") for c in line
-        ):
+        # Hex data lines and ``$`` metadata lines are part of the resource.
+        if _is_resource_line(line):
             pos = next_nl
             continue
 
-        # Binary content → end of resource
+        # Binary content reached → end of resource.
         if b"\x00\x00" in line[:10]:
             break
 

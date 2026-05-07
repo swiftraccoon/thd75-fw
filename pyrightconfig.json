@@ -1,5 +1,7 @@
 {
     "include": ["src"],
+    "exclude": ["loaders"],
+    "extraPaths": ["tests"],
     "pythonVersion": "3.10",
     "typeCheckingMode": "strict",
     "reportMissingTypeStubs": false
