@@ -25,9 +25,13 @@ def _synthetic_resource_bytes(num_data_lines: int = 200) -> bytes:
 
 
 class TestLoad:
-    """The two paths through ``resource.load``: ILSpy fast-path
-    (sibling .txt file) and PE byte-scanner fallback. Both must
-    surface missing-file errors with proper ``.filename``."""
+    """``resource.load`` reads its argument's PE bytes and scans for
+    the embedded firmware resource. A previous version preferred a
+    sibling ILSpy-extracted text file when one existed next to the
+    requested ``.exe`` — that was removed in v0.2.0 because it was a
+    silent firmware-version footgun (a stale sibling from a prior
+    session would override the requested updater). Pre-extracted
+    resources are now passed explicitly via ``--resource``."""
 
     def test_load_missing_file_raises_with_filename(self, tmp_path: Path) -> None:
         # The CLI relies on .filename being set so it can produce
@@ -68,17 +72,20 @@ class TestLoad:
         with pytest.raises(ValueError, match="not found"):
             resource.load(fake_exe)
 
-    def test_ilspy_sibling_takes_precedence_over_pe_scan(
+    def test_sibling_ilspy_file_is_ignored(
         self, tmp_path: Path, monkeypatch: MonkeyPatch,
     ) -> None:
-        """Fast path: if ``THD75_Updater_E.Resources.TH-D75_Firm_E.txt``
-        sits next to the .exe (e.g., produced by ``ilspycmd``), prefer
-        it over byte-scanning the PE.
+        """``resource.load`` MUST ignore a sibling ILSpy-extracted file
+        even when one is present — silently swapping the .exe's
+        embedded resource for a sibling text file's content is a
+        firmware-version footgun (the sibling could be from a prior
+        extraction of a different updater version).
 
-        Verified against real V1.03 firmware: byte-scanner output and
-        ILSpy fast-path output are SHA-256 identical for all 7 sections.
-        This test pins the dispatch logic so a refactor can't silently
-        regress to always byte-scanning.
+        This test pins the v0.2.0 contract: a sibling file does not
+        affect ``load(exe_path)``. Callers who want to use a
+        pre-extracted resource should pass it explicitly through the
+        CLI's ``--resource`` flag (which routes around ``resource.load``
+        entirely — see cli.py's ``_run_extract`` / ``_run_patch``).
         """
         monkeypatch.setattr(resource, "_MIN_RESOURCE_SIZE", 100)
 
@@ -86,17 +93,62 @@ class TestLoad:
         fake_exe = tmp_path / "fake.exe"
         fake_exe.write_bytes(_synthetic_resource_bytes())
 
-        # The sibling .txt has a clearly different sentinel. Use \n
-        # rather than \r\n so it round-trips through read_text's
-        # universal-newline translation cleanly.
+        # Put a sibling ILSpy-extracted .txt next to the .exe with a
+        # clearly different sentinel.
         sibling = tmp_path / "THD75_Updater_E.Resources.TH-D75_Firm_E.txt"
-        sibling_text = "$FAST_PATH_SENTINEL\nDDEADBEEF\n"
-        sibling.write_text(sibling_text, encoding="utf-8")
+        sibling.write_text(
+            "$STALE_SIBLING_SENTINEL\nDDEADBEEF\n", encoding="utf-8",
+        )
 
         text = resource.load(fake_exe)
 
-        # If we reached this assertion via the byte scanner, we'd see
-        # "$AABBCC..." from _synthetic_resource_bytes. The fast path
-        # returns the sibling .txt's content.
-        assert "FAST_PATH_SENTINEL" in text
-        assert "AABBCC" not in text  # byte-scanner content not present
+        # The .exe's actual content must come through; the sibling
+        # must not have shadowed it.
+        assert "AABBCC" in text
+        assert "STALE_SIBLING_SENTINEL" not in text
+
+
+class TestExtract:
+    """``extract`` pulls the resource text straight from .exe bytes
+    (no Path, no sibling-file fast path) — the form the repacker needs."""
+
+    def test_extracts_synthetic_resource(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setattr(resource, "_MIN_RESOURCE_SIZE", 100)
+        text = resource.extract(_synthetic_resource_bytes())
+        assert text.startswith("$AABBCC")
+        assert "DCCDDEEFF" in text
+
+    def test_no_resource_raises(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setattr(resource, "_MIN_RESOURCE_SIZE", 100)
+        with pytest.raises(ValueError, match="not found"):
+            resource.extract(b"\x00" * 200 + b"no markers here " * 20)
+
+
+class TestReplace:
+    """``replace`` overwrites the embedded resource in place; the splice
+    requires a same-length replacement so no other PE offset moves."""
+
+    def test_replaces_resource_in_place(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setattr(resource, "_MIN_RESOURCE_SIZE", 100)
+        exe = _synthetic_resource_bytes()
+        original = resource.extract(exe)
+        # A same-length edit: swap one 6-char hex run for another.
+        new_resource = original.replace("AABBCC", "DDEEFF", 1)
+        patched = resource.replace(exe, new_resource)
+        assert len(patched) == len(exe)
+        assert resource.extract(patched) == new_resource
+        # The binary surrounding the resource is untouched.
+        assert patched[:10] == exe[:10]
+        assert patched[-10:] == exe[-10:]
+
+    def test_length_mismatch_rejected(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setattr(resource, "_MIN_RESOURCE_SIZE", 100)
+        exe = _synthetic_resource_bytes()
+        original = resource.extract(exe)
+        with pytest.raises(ValueError, match="exact length match"):
+            resource.replace(exe, original + "EXTRA")
+
+    def test_no_resource_raises(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setattr(resource, "_MIN_RESOURCE_SIZE", 100)
+        with pytest.raises(ValueError, match="not found"):
+            resource.replace(b"\x00" * 300, "$AABBCC\r\n")

@@ -84,7 +84,11 @@ def intel_hex_record() -> Callable[..., bytes]:
     """Provide a function that builds a single packed Intel HEX record.
 
     The TH-D75 firmware's records are this packed binary form, not the
-    standard ``:LLAAAATT...`` ASCII representation.
+    standard ``:LLAAAATT...`` ASCII representation. ``checksum=None``
+    (the default) auto-computes the correct two's-complement byte so
+    test fixtures naturally produce valid records; tests that want to
+    construct a *bad* checksum for negative testing must pass an
+    explicit ``checksum=<value>``.
     """
 
     def _intel_hex_record(
@@ -92,10 +96,11 @@ def intel_hex_record() -> Callable[..., bytes]:
         addr: int,
         rec_type: int,
         data: bytes = b"",
-        checksum: int = 0,
+        checksum: int | None = None,
     ) -> bytes:
-        return bytes(
-            [byte_count, (addr >> 8) & 0xFF, addr & 0xFF, rec_type, *data, checksum]
-        )
+        header = [byte_count, (addr >> 8) & 0xFF, addr & 0xFF, rec_type, *data]
+        if checksum is None:
+            checksum = (-sum(header)) & 0xFF
+        return bytes([*header, checksum])
 
     return _intel_hex_record

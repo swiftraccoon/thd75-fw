@@ -485,6 +485,9 @@ wheels = [
 [[package]]
 name = "thd75-fw"
 source = { editable = "." }
+dependencies = [
+    { name = "tomli", marker = "python_full_version < '3.11'" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -494,9 +497,11 @@ dev = [
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "ruff" },
+    { name = "tomli" },
 ]
 
 [package.metadata]
+requires-dist = [{ name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=1.1.0" }]
 
 [package.metadata.requires-dev]
 dev = [
@@ -506,6 +511,7 @@ dev = [
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "ruff" },
+    { name = "tomli" },
 ]
 
 [[package]]

@@ -32,8 +32,18 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
-      - run: pip install mypy pyright
-      - run: mypy src/ --strict
+      - name: Install package and type-checker dependencies
+        # Install the package itself so ``thd75_fw.*`` imports resolve
+        # inside tests, plus the test deps used in ``tests/`` (pytest,
+        # hypothesis) and ``tomli`` explicitly. The runtime ``tomli``
+        # requirement in pyproject.toml is gated on ``python_version <
+        # '3.11'``, but ``pyrightconfig.json`` pins ``pythonVersion:
+        # 3.10`` so static analysis takes the ``else: import tomli as
+        # tomllib`` branch in patch.py on every Python — meaning tomli
+        # must be importable for the type-checker even when the host
+        # interpreter is 3.11+.
+        run: pip install -e . pytest pytest-cov hypothesis tomli mypy pyright
+      - run: mypy src/ tests/ --strict
       - run: pyright
 
   test:

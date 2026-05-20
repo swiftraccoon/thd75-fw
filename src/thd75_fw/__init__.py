@@ -18,16 +18,44 @@ GNU General Public License for more details.
 
 from __future__ import annotations
 
-from . import file_cipher, images, intel_hex, resource, sections, serial_cipher, voice
+from . import (
+    file_cipher,
+    images,
+    intel_hex,
+    kex,
+    patch,
+    resource,
+    sections,
+    serial_cipher,
+    voice,
+)
 from .file_cipher import (
     DecryptedBlock,
     DecryptedResource,
     RollingKeyState,
     decrypt_line,
     decrypt_resource,
+    encrypt_line,
 )
 from .images import Image, ImageDatabase
 from .intel_hex import ParseResult, RecordType
+from .kex import (
+    Kex,
+    KexBlock,
+    firmware_checksum,
+    parse_resource,
+    patch_kex,
+    patch_resource,
+    render,
+)
+from .patch import (
+    ByteChange,
+    Patch,
+    PatchVerificationError,
+    iter_catalog,
+    load_patch,
+    parse_patch,
+)
 from .sections import (
     FLASH_BASE,
     SECTIONS,
@@ -51,19 +79,24 @@ from .voice import (
     classify_language,
 )
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     "DEFAULT_KEY",
     "FLASH_BASE",
     "SECTIONS",
+    "ByteChange",
     "DecryptedBlock",
     "DecryptedResource",
     "FlashAddress",
     "Image",
     "ImageDatabase",
+    "Kex",
+    "KexBlock",
     "Language",
     "ParseResult",
+    "Patch",
+    "PatchVerificationError",
     "Prompt",
     "PromptDatabase",
     "RecordType",
@@ -76,12 +109,23 @@ __all__ = [
     "decrypt_line",
     "decrypt_resource",
     "encrypt",
+    "encrypt_line",
     "file_cipher",
+    "firmware_checksum",
     "images",
     "intel_hex",
+    "iter_catalog",
+    "kex",
+    "load_patch",
     "lookup_by_address",
     "lookup_by_name",
     "name_for_address",
+    "parse_patch",
+    "parse_resource",
+    "patch",
+    "patch_kex",
+    "patch_resource",
+    "render",
     "resource",
     "sections",
     "serial_cipher",

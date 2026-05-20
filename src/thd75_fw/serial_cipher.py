@@ -93,6 +93,28 @@ def _ror3(byte: int) -> int:
     return ((byte >> 3) | (byte << 5)) & 0xFF
 
 
+def _validate_key(key: int) -> None:
+    """Enforce the documented single-byte key range.
+
+    Out-of-range keys cause subtle silent corruption rather than clean
+    failure: ``key=-1`` round-trips wrong (Python's negative-int XOR
+    semantics propagate through the cipher without raising), and large
+    positive keys can drive the decrypt-side ``rev[xored]`` lookup past
+    256 entries, surfacing as an opaque ``IndexError`` from deep in
+    the cipher loop. Reject at the boundary instead.
+    """
+    # bool is a subclass of int in Python and the type checker accepts
+    # bool where int is annotated. Compare exact type so ``key=True``
+    # doesn't silently mean ``key=1``. ``type() is`` (not isinstance)
+    # is exact and never matches subclasses — exactly what we need.
+    if type(key) is not int:
+        msg = f"key must be an integer, got {type(key).__name__}"
+        raise TypeError(msg)
+    if not 0 <= key <= 0xFF:
+        msg = f"key must be 0..255, got {key}"
+        raise ValueError(msg)
+
+
 def encrypt(data: bytes | bytearray, key: int = DEFAULT_KEY) -> bytes:
     """Encrypt a block with the serial transfer cipher.
 
@@ -102,7 +124,12 @@ def encrypt(data: bytes | bytearray, key: int = DEFAULT_KEY) -> bytes:
 
     Returns:
         Ciphertext bytes (same length as input).
+
+    Raises:
+        TypeError: if ``key`` is not an integer (or is a bool).
+        ValueError: if ``key`` is outside the 0..255 single-byte range.
     """
+    _validate_key(key)
     if key == 0:
         return bytes(data)
     table: bytes = _TABLE.forward
@@ -122,7 +149,12 @@ def decrypt(data: bytes | bytearray, key: int = DEFAULT_KEY) -> bytes:
 
     Returns:
         Plaintext bytes (same length as input).
+
+    Raises:
+        TypeError: if ``key`` is not an integer (or is a bool).
+        ValueError: if ``key`` is outside the 0..255 single-byte range.
     """
+    _validate_key(key)
     if key == 0:
         return bytes(data)
     rev: tuple[int, ...] = _TABLE.reverse
@@ -138,7 +170,9 @@ def verify_round_trip(key: int = DEFAULT_KEY) -> None:
 
     Raises:
         AssertionError: If any byte fails the round-trip.
+        TypeError, ValueError: see ``encrypt`` / ``decrypt``.
     """
+    _validate_key(key)
     for b in range(256):
         plain = bytes([b])
         result: bytes = decrypt(encrypt(plain, key), key)

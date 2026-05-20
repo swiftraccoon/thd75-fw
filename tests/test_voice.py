@@ -73,6 +73,34 @@ class TestLoad:
         with pytest.raises(ValueError, match="entry count"):
             load(bytes(data))
 
+    def test_index_table_overflowing_audio_base_raises(self) -> None:
+        # Each entry is 4 bytes; the table starts at 0x40. With audio
+        # data documented to begin at 0x0BF8, the max legal entry count
+        # is (0x0BF8 - 0x40) / 4 = 750. A header claiming 800 entries
+        # would let the index table overflow into the audio region and
+        # silently shadow the first audio bytes. Reject explicitly.
+        entry_count = 800
+        data = bytearray(
+            _INDEX_TABLE_OFFSET + entry_count * 4 + 100,
+        )  # room for the bogus table plus a little audio
+        struct.pack_into("<I", data, 0x20, entry_count)
+        with pytest.raises(ValueError, match="overlapping the audio data"):
+            load(bytes(data))
+
+    def test_non_monotonic_offsets_raises(self) -> None:
+        # Cumulative offsets must monotonically non-decrease. A
+        # decreasing offset would silently produce a negative-size
+        # prompt with empty data and negative duration.
+        header = bytearray(_AUDIO_BASE)
+        struct.pack_into("<I", header, 0x20, 3)
+        # Three entries: 100, 50, 200. The drop from 100 → 50 is bad.
+        struct.pack_into("<I", header, _INDEX_TABLE_OFFSET + 0 * 4, 100)
+        struct.pack_into("<I", header, _INDEX_TABLE_OFFSET + 1 * 4, 50)
+        struct.pack_into("<I", header, _INDEX_TABLE_OFFSET + 2 * 4, 200)
+        audio = bytearray(b"\x10" * 200)
+        with pytest.raises(ValueError, match="non-monotonic"):
+            load(bytes(header) + bytes(audio))
+
 
 class TestClassifyLanguage:
     """V1.03 prompt-index → language-code mapping at the documented

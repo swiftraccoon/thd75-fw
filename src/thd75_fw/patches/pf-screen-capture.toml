@@ -1,0 +1,240 @@
+name        = "pf-screen-capture"
+description = """
+Let the front-panel PF1/PF2 keys be assigned Screen Capture (the stock
+firmware allows that function only on the microphone PF keys, and the
+restriction is enforced in firmware, not in hardware).
+
+The resulting patched updater should return a SHA-256 of
+cf7eb5d126bf00c9bbbe88fed0f1f5f21b3572511cd58c6549193aeb3d1ca1dd
+
+WHAT IT DOES
+
+Front PF1 → Menu 940 and Front PF2 → Menu 941 (menu numbers per the
+User Manual) currently cannot resolve to Screen Capture: even if the
+operator writes the Screen-Capture key
+byte (0x1F) into the PF-assignment slot (MCP offset 0x107A for front
+PF1, 0x107B for front PF2), the key falls through to entry 0 of the
+function table — Recording — when pressed. After this patch, both keys
+resolve Screen Capture and behave identically to a microphone PF key
+set to the same function: one press writes a 240×180 24-bit BMP to
+/KENWOOD/TH-D75/CAPTURE/ on the microSD.
+
+WHY IT'S NEEDED (the firmware gate)
+
+Pressing any PF key — front or mic — ends in the same dispatch
+sequence: a per-key decoder reads the stored assignment byte, looks it
+up in a shared 51-entry function table (pf_assignment_lookup_table at
+DDR 0xC0192638, 2 bytes/entry: {value, key}), and dispatches the
+decoded value through pf_action_table (DDR 0xC005A5F8). The
+post-decode dispatch (the 7-instruction load/scale/index/`ldrh`
+sequence reading from pf_action_table) is byte-identical between the
+front and mic press handlers — only the literal-pool offset for the
+table pointer differs.
+
+The handlers themselves differ in their *pre-decode* work, because
+front and mic keys reach the firmware through different input
+hardware (per the service manual, front keys are a 5×5 matrix and mic
+PF keys an ADC resistor ladder at ~3.9 kΩ / ~10 kΩ). The front
+handler (pf_press_handler_front_pf1 at DDR 0xC0037F28, ~72
+instructions) does matrix-scan / debounce / multi-key bookkeeping
+that the mic handler (pf_press_handler_mic_pf2 at DDR 0xC00380B8,
+~26 instructions) does not need. But once each handler has a
+*decoded* function value, the dispatch path through pf_action_table
+is the same.
+
+The asymmetry that this patch removes lives in one byte per decoder —
+the immediate operand of a Thumb `cmp r1, #imm` instruction inside
+each decoder's scan loop:
+
+  decoder                              DDR        cmp imm   last idx
+  pf_decode_front_pf1                  0xC0010424   0x1B      0x1A
+  pf_decode_front_pf2                  0xC0010498   0x1B      0x1A
+  pf_decode_mic_pf2                    0xC0010580   0x33      0x32
+  pf_decode_mic_pf3                    0xC00105FC   0x33      0x32
+
+The scan loop pattern (firmware-exact) is:
+
+    i = 0
+    loop:
+        if i >= cmp_imm: return 0       // bge exit → 0 = Recording (no match)
+        entry = table[i]                // 2 bytes: {value, key}
+        if entry.key == stored_byte: return entry.value
+        i += 1
+
+So the loop body runs for i ∈ {0 .. cmp_imm − 1}, i.e. up to and
+including index `cmp_imm − 1` (column "last idx" above). Screen
+Capture lives at table index 27, with key byte 0x1F, so a stored
+0x1F is reachable only when the loop covers index 27 — i.e. when
+cmp_imm ≥ 28 (0x1C). The front decoders' cmp_imm of 0x1B stops one
+short of index 27; the mic decoders' cmp_imm of 0x33 covers all 51
+entries (indices 0..50).
+
+THE TWO BYTES PATCHED
+
+This patch raises both front decoders' cmp immediate from 0x1B to
+0x33, i.e. it replaces `cmp r1, #0x1B` (Thumb encoding `1B 29`) with
+`cmp r1, #0x33` (`33 29`). After the patch the front decoders'
+last-scanned index becomes 0x32 (= 50), matching what the mic
+decoders already use; the cmp immediate value 0x33 happens to equal
+the table's entry count (51) — the loop now covers the entire table
+exactly, so front and mic decoders become functionally identical.
+
+  flat-image offset   DDR runtime addr   flash addr     before  after
+  0x10444             0xC0010444         0x00210444     0x1B    0x33
+  0x104B8             0xC00104B8         0x002104B8     0x1B    0x33
+
+Address arithmetic: flat-image offset = DDR addr − 0xC0010000 + 0x10000
+(the FIRMWARE section loads at DDR 0xC0000000 from flash 0x00200000, so
+DDR addr = flash addr − 0x00200000 + 0xC0000000). The offsets given to
+this patch's engine are flat-image offsets into the FIRMWARE section.
+
+This patch does NOT change pf_menu_descriptors at DDR 0xC00445C4 (the
+table that constrains which functions menus 940/941 *offer* in the UI).
+On a patched radio Menu 940/941 still may not list "Screen Capture" as
+a selectable option for front PF1/PF2 — the menu is cosmetic and
+unchanged by this patch. The decoder, which is what actually maps the
+stored byte to a function at press time, is the part that now reaches
+Screen Capture.
+
+ASSIGNING SCREEN CAPTURE TO FRONT PF1 / PF2 AFTER FLASHING
+
+Flashing the patched updater only widens the decoder scan limit — it
+does not change which function is stored in the PF-key assignment
+slot. To make front PF1 (or PF2) trigger Screen Capture, write the
+Screen-Capture function byte (0x1F) to the corresponding MCP slot
+(0x107A for front PF1, 0x107B for front PF2). Verify by pressing the
+key and looking for a new .bmp in /KENWOOD/TH-D75/CAPTURE/ on the
+microSD.
+
+Off-the-shelf (kenwood-thd75 example):
+
+    cargo run -p kenwood-thd75 --example pf_screen_capture -- \\
+        /dev/cu.usbmodemXXXX
+
+(The example writes 0x1F to MCP 0x107A only. Adapt the FRONT_PF1
+constant to 0x7B for front PF2.)
+
+Programmatic (kenwood-thd75 library, any caller):
+
+    use kenwood_thd75::{Radio, transport::SerialTransport};
+    let transport = SerialTransport::open("/dev/cu.usbmodemXXXX", 115_200)?;
+    let mut radio = Radio::connect(transport).await?;
+    radio.modify_memory_page(0x10, |page| {
+        page[0x7A] = 0x1F;  // front PF1 → Screen Capture
+        page[0x7B] = 0x1F;  // front PF2 → Screen Capture
+    }).await?;
+    // Programming mode resets USB on exit — reconnect needed.
+
+Wire protocol (raw MCP, for users with other tools):
+
+    Enter programming mode:  0M PROGRAM\\r   at 9600 baud
+    Read MCP page 0x10:      R <addr32-be> (addr = 0x00001000)
+                             → W <addr32-be> <256-byte page> (261 B back)
+    Modify page[0x7A] = 0x1F and/or page[0x7B] = 0x1F.
+    Write page back:         W <addr32-be> <256-byte page>
+                             → 0x06 (ACK)
+    Exit:                    E   (USB drops; reconnect)
+
+(MCP runs at 9600 baud. 57600 has been observed to crash the radio.
+The USB connection drops on exit from programming mode and must be
+reopened. Always reconnect after.)
+
+To revert, write back the original byte for that slot — per the User
+Manual factory defaults, front PF1 ships as 0x0A=Balance and front
+PF2 as 0x0B=GPS — or use Menu 940/941 on the radio. (The 0x0A
+default for the front PF entry is also visible in firmware as the
+default_key field of the front entry in pf_menu_descriptors at DDR
+0xC00445C4; the PF2-specific default 0x0B comes from the User
+Manual and a baseline MCP dump, not directly from this firmware
+table.)
+
+WHY IT'S PROBABLY SAFE
+
+(1) Verify-then-write: the engine refuses to apply this patch unless
+both offsets currently hold 0x1B. A radio running anything other than
+V1.03 (or one where firmware has already been patched, or corrupted)
+trips PatchVerificationError before any byte is written, and no output
+file is produced — failure is naturally atomic.
+
+(2) Length-preserving: each change rewrites one byte of an existing
+Thumb instruction's immediate field. No code is inserted, no addresses
+shift, no relocations apply, no call sites move.
+
+(3) CHECKBYTES is not invalidated: the 2-byte CHECKBYTES marker at
+flash 0x00200062 (post-stamp value 0xB01D on V1.03, observed via
+hardware read — the extracted firmware section reads 0xFF here
+because the updater stamps these bytes into the ARM vector padding
+*after* the main firmware write) is a build-completion marker, not a
+content checksum. The firmware exposes it through a trivial getter
+(fw_checkbytes_read at DDR 0xC002AAF8) reached from exactly two
+callers: svc_9r_handler (the service CAT command 9R) and an
+info-display message builder at DDR 0xC00B7ED8 that formats the value
+as a hex string. Both callers only *read* CHECKBYTES; it is never
+compared against firmware content at boot or runtime, so changing
+firmware bytes elsewhere cannot invalidate it. The 2 patched bytes
+are at flash 0x00210444 / 0x002104B8 — far from the CHECKBYTES /
+FINAL_ZZZ region (flash 0x00200040–0x0020007F), which this patch
+leaves untouched.
+
+(4) The Intel HEX record checksums covering the patched bytes are
+recomputed automatically by `intel_hex.patch_image`, and the firmware
+block's `$CA` checksum (which the radio verifies during flash) is
+recomputed automatically by `kex.patch_kex`. Both of those layers were
+in place before this patch was added.
+
+HARDWARE-VERIFIED on V1.03: after flashing a repacked updater built
+with this patch, assigning 0x1F to front PF1 (`kenwood-thd75` MCP
+write to 0x107A) makes front PF1 reliably trigger Screen Capture, and
+the radio writes a valid 240×180 BMP to the microSD per press.
+
+PROVENANCE OF CLAIMS
+
+Firmware-derived (checkable in the extracted V1.03 FIRMWARE section
+with any disassembler — Ghidra/IDA/objdump/etc.):
+  - The two patched bytes (`cmp r1, #0x1B` at flat-image offsets
+    0x10444 and 0x104B8, Thumb encoding `1B 29`) and the post-patch
+    target encoding (`33 29`) that matches the mic decoders.
+  - All function addresses: pf_decode_front_pf1 (0xC0010424),
+    pf_decode_front_pf2 (0xC0010498), pf_decode_mic_pf2 (0xC0010580),
+    pf_decode_mic_pf3 (0xC00105FC), pf_press_handler_front_pf1
+    (0xC0037F28), pf_press_handler_mic_pf2 (0xC00380B8),
+    fw_checkbytes_read (0xC002AAF8).
+  - All data-table addresses and layouts: pf_assignment_lookup_table
+    (0xC0192638, 51 entries × 2 bytes {value, key}), pf_action_table
+    (0xC005A5F8, via pointer at 0xC0038208), pf_menu_descriptors
+    (0xC00445C4, 5 × 20-byte entries with scan limits and default
+    keys), CHECKBYTES pointer (0xC002AB90 → 0xC0000062).
+  - BMP geometry (240 × 180, 24-bit, BI_RGB) from the header template
+    at DDR 0xC017D1BC; SD-card path string "/KENWOOD/TH-D75/CAPTURE"
+    at DDR 0xC008FB5C; "Screen Capture" string at DDR 0xC0008C70.
+  - That fw_checkbytes_read is reached only by svc_9r_handler and
+    the info-display builder at 0xC00B7ED8 (xref count = 2).
+  - That Screen Capture lives at table index 27 with key byte 0x1F.
+
+External-source (NOT derivable from the firmware section alone):
+  - Menu numbers 940 / 941 for front PF1 / PF2 (User Manual).
+  - CHECKBYTES post-stamp value 0xB01D on V1.03 (hardware read after
+    flashing; the extracted firmware section reads 0xFF in this
+    region because the updater stamps it post-write).
+  - Front PF2's factory default 0x0B = GPS (User Manual + baseline
+    MCP dump; the firmware's pf_menu_descriptors shows only one
+    front entry with default 0x0A = Balance).
+  - Service-manual hardware description of front 5×5 matrix vs mic
+    resistor ladder 3.9 kΩ / 10 kΩ.
+  - The mapping of internal function code 0x00 to the user-visible
+    "Recording" function is inferred from the existence of the
+    "Recording" string at DDR 0xC00012D4 / 0xC00087C0 and the
+    decoder's no-match return of 0; the full code↔string mapping is
+    cross-validated against the User Manual.
+"""
+target_firmware = "TH-D75 V1.03"
+
+[[changes]]
+offset = 0x10444
+expect = 0x1B
+value  = 0x33
+
+[[changes]]
+offset = 0x104B8
+expect = 0x1B
+value  = 0x33

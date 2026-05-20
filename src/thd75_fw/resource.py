@@ -1,21 +1,20 @@
 """Firmware resource extraction from the .NET updater PE.
 
 The TH-D75 firmware updater embeds all firmware data as a managed
-string resource. This module locates and extracts that resource,
-either from a pre-extracted file (ILSpy output) or by scanning the
-PE binary directly.
+string resource. This module locates and extracts that resource by
+scanning the PE binary directly. Callers that have a pre-extracted
+resource (e.g. ILSpy output) should pass it explicitly through the
+CLI ``--resource`` flag rather than relying on path-based discovery.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
-__all__: list[str] = ["load"]
+__all__: list[str] = ["extract", "load", "replace"]
 
 _HEX_CHARS: frozenset[int] = frozenset(b"0123456789abcdefABCDEF")
 _DOLLAR_BYTE: int = ord("$")
-
-_ILSPY_RESOURCE_NAME: str = "THD75_Updater_E.Resources.TH-D75_Firm_E.txt"
 
 _MIN_RESOURCE_SIZE: int = 1_000_000  # Must be > 1 MB to be valid
 
@@ -34,8 +33,14 @@ def _is_resource_line(line: bytes) -> bool:
 def load(exe_path: Path) -> str:
     """Load the firmware resource text from an updater executable.
 
-    Checks for a sibling ILSpy-extracted file first, then falls back
-    to scanning the PE binary.
+    The resource is scanned out of ``exe_path`` itself. A previous
+    version of this loader silently preferred a sibling ILSpy-extracted
+    text file when one existed next to the requested ``.exe`` — that
+    auto-discovery would silently bypass the requested updater and is
+    a firmware-version footgun (e.g. ``thd75-extract V1.05.exe`` could
+    return V1.03 content if a sibling text file from a prior session
+    sat in the same directory). Pre-extracted resources are now
+    explicit-only via the CLI ``--resource`` flag.
 
     Args:
         exe_path: Path to ``TH-D75_V103_e.exe`` (or equivalent).
@@ -47,27 +52,74 @@ def load(exe_path: Path) -> str:
         FileNotFoundError: If ``exe_path`` does not exist.
         ValueError: If the resource cannot be found in the PE.
     """
-    exe_path = Path(exe_path)
+    return _scan_pe(Path(exe_path))
 
-    # Prefer pre-extracted resource (much faster, no scanning).
-    # If the .exe doesn't exist, _scan_pe's read_bytes() raises
-    # FileNotFoundError with .filename properly populated for callers.
-    ilspy_path: Path = exe_path.parent / _ILSPY_RESOURCE_NAME
-    if ilspy_path.exists():
-        return ilspy_path.read_text(encoding="utf-8")
 
-    return _scan_pe(exe_path)
+def extract(exe_data: bytes) -> str:
+    """Extract the firmware resource text from updater ``.exe`` bytes.
+
+    Args:
+        exe_data: Raw bytes of the updater executable.
+
+    Returns:
+        The full text of the embedded firmware resource.
+
+    Raises:
+        ValueError: if the resource cannot be located.
+    """
+    start, end = _find_resource_span(exe_data)
+    return exe_data[start:end].decode("ascii", errors="strict")
+
+
+def replace(exe_data: bytes, new_resource: str) -> bytes:
+    """Return ``exe_data`` with its embedded firmware resource replaced.
+
+    The resource is overwritten in place, so ``new_resource`` must encode
+    to exactly the same number of ASCII bytes as the resource it replaces
+    — keeping every other PE offset (and the managed resource's own
+    length prefix) untouched.
+
+    Args:
+        exe_data: Raw bytes of the updater executable.
+        new_resource: Replacement resource text.
+
+    Returns:
+        The updater bytes with the resource region overwritten.
+
+    Raises:
+        ValueError: if the resource cannot be located, or
+            ``new_resource`` is not the same length as the original.
+    """
+    start, end = _find_resource_span(exe_data)
+    replacement: bytes = new_resource.encode("ascii")
+    if len(replacement) != end - start:
+        msg = (
+            f"replacement resource is {len(replacement):,} bytes but the "
+            f"original is {end - start:,} — an in-place splice needs an "
+            f"exact length match"
+        )
+        raise ValueError(msg)
+    return exe_data[:start] + replacement + exe_data[end:]
 
 
 def _scan_pe(exe_path: Path) -> str:
-    """Scan a PE binary for the embedded firmware resource.
+    """Scan a PE binary *file* for the embedded firmware resource."""
+    return extract(exe_path.read_bytes())
 
-    The resource is a contiguous ASCII text region consisting of
-    ``$``-prefixed metadata lines interleaved with hex data lines.
-    It occupies ~42 MB of the 43 MB executable.
+
+def _find_resource_span(data: bytes) -> tuple[int, int]:
+    """Locate the embedded firmware resource within PE bytes.
+
+    The resource is a contiguous ASCII text region of ``$``-prefixed
+    metadata lines interleaved with hex data lines — ~42 MB of the 43 MB
+    executable.
+
+    Returns:
+        The ``(start, end)`` byte offsets of the resource region.
+
+    Raises:
+        ValueError: if no resource region is found.
     """
-    data: bytes = exe_path.read_bytes()
-
     for candidate_start in range(len(data) - 100):
         if data[candidate_start] != _DOLLAR_BYTE:
             continue
@@ -82,20 +134,17 @@ def _scan_pe(exe_path: Path) -> str:
         if not _is_resource_line(data[candidate_start:line_end]):
             continue
 
-        # Found a candidate — scan forward for the end of the resource region
+        # Found a candidate — scan forward for the end of the region.
         end: int = _find_end(data, line_end)
-        # Strict ASCII: the resource is supposed to be pure ASCII hex/$ markers.
-        # A UnicodeDecodeError here means we found a false-positive region;
-        # let the caller see the failure rather than silently substituting.
+        # Strict ASCII: the resource is pure ASCII hex/$ markers. A
+        # UnicodeDecodeError means a false-positive region — keep looking.
         try:
-            text: str = data[candidate_start:end].decode(
-                "ascii", errors="strict",
-            )
+            text: str = data[candidate_start:end].decode("ascii", errors="strict")
         except UnicodeDecodeError:
             continue
 
         if len(text) >= _MIN_RESOURCE_SIZE:
-            return text
+            return (candidate_start, end)
 
     msg = (
         "Firmware resource not found in PE. "

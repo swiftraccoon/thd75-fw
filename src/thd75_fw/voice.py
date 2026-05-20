@@ -164,6 +164,15 @@ def load(data: bytes) -> PromptDatabase:
             f"have {len(data)}"
         )
         raise ValueError(msg)
+    if table_end > _AUDIO_BASE:
+        # Header is lying about the entry count: the table would overflow
+        # past the documented audio-data start and silently shadow the
+        # first audio bytes with index-table entries.
+        msg = (
+            f"Index table for {entry_count} entries ends at 0x{table_end:X}, "
+            f"overlapping the audio data region (starts at 0x{_AUDIO_BASE:X})"
+        )
+        raise ValueError(msg)
 
     # Parse index table — entries are cumulative end-offsets relative to _AUDIO_BASE
     offsets: list[int] = []
@@ -177,6 +186,16 @@ def load(data: bytes) -> PromptDatabase:
     for i in range(entry_count):
         start = 0 if i == 0 else offsets[i - 1]
         end = offsets[i]
+        # Cumulative offsets must monotonically nondecrease — a
+        # decreasing offset would silently produce a negative-size
+        # prompt with empty data and negative duration. Refuse loudly.
+        if end < start:
+            msg = (
+                f"Prompt {i} has cumulative end 0x{end:X} earlier than "
+                f"previous prompt's end 0x{start:X} — index table is "
+                f"non-monotonic and the database is corrupt"
+            )
+            raise ValueError(msg)
         abs_start = _AUDIO_BASE + start
         abs_end = _AUDIO_BASE + end
 

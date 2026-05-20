@@ -1,8 +1,14 @@
 {
-    "include": ["src"],
-    "exclude": ["loaders"],
+    "include": ["src", "tests"],
+    "exclude": ["loaders", "**/node_modules", "**/__pycache__", "**/.*", ".venv"],
     "extraPaths": ["tests"],
     "pythonVersion": "3.10",
     "typeCheckingMode": "strict",
-    "reportMissingTypeStubs": false
+    "reportMissingTypeStubs": false,
+    "executionEnvironments": [
+        {
+            "root": "tests",
+            "reportPrivateUsage": "none"
+        }
+    ]
 }

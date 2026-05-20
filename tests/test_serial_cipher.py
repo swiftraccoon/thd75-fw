@@ -56,6 +56,45 @@ class TestKeyBehavior:
         assert encrypt(plain) != plain
 
 
+class TestKeyValidation:
+    """The key parameter must be a single byte (0..255). Negative and
+    out-of-range keys silently produced wrong output (key=-1) or an
+    opaque IndexError from deep in the decrypt loop (key=300); both
+    now fail loudly at the cipher boundary."""
+
+    def test_negative_key_rejected(self) -> None:
+        with pytest.raises(ValueError, match=r"key must be 0\.\.255"):
+            encrypt(b"hello", key=-1)
+        with pytest.raises(ValueError, match=r"key must be 0\.\.255"):
+            decrypt(b"hello", key=-1)
+
+    def test_too_large_key_rejected(self) -> None:
+        # key=256 is the smallest invalid positive key. key=300 was the
+        # reviewer's example — both must be rejected up front.
+        with pytest.raises(ValueError, match=r"key must be 0\.\.255"):
+            encrypt(b"hello", key=256)
+        with pytest.raises(ValueError, match=r"key must be 0\.\.255"):
+            decrypt(b"hello", key=300)
+
+    def test_bool_key_rejected(self) -> None:
+        # bool is a subclass of int in Python; key=True would silently
+        # mean key=1 without explicit rejection.
+        with pytest.raises(TypeError, match="key must be an integer"):
+            encrypt(b"hello", key=True)
+        with pytest.raises(TypeError, match="key must be an integer"):
+            decrypt(b"hello", key=False)
+
+    def test_boundary_keys_accepted(self) -> None:
+        # 0 and 255 are valid single-byte keys.
+        assert encrypt(b"x", key=0) == b"x"  # passthrough
+        round_trip = decrypt(encrypt(b"x", key=255), key=255)
+        assert round_trip == b"x"
+
+    def test_verify_round_trip_validates_key(self) -> None:
+        with pytest.raises(ValueError, match=r"key must be 0\.\.255"):
+            verify_round_trip(key=-1)
+
+
 class TestSubstitutionTable:
     """The 256-byte substitution table is a true permutation, validated
     at construction; from_bytes rejects non-permutations."""

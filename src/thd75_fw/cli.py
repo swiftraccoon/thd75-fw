@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
+import os
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, NoReturn
@@ -15,6 +17,8 @@ from . import (
     file_cipher,
     images,
     intel_hex,
+    kex,
+    patch,
     resource,
     serial_cipher,
     voice,
@@ -25,6 +29,9 @@ __all__: list[str] = [
     "main_extract",
     "main_extract_images",
     "main_extract_voice",
+    "main_list_patches",
+    "main_patch",
+    "main_repack",
     "main_serial_cipher",
 ]
 
@@ -50,6 +57,37 @@ def _die(msg: str, code: int = 2) -> NoReturn:
     sys.exit(code)
 
 
+def _die_on_os_error(exc: OSError) -> NoReturn:
+    """Map an ``OSError`` to a clean stderr message and exit code.
+
+    Routes ``FileNotFoundError`` / ``PermissionError`` /
+    ``IsADirectoryError`` to specific user-facing messages; treats a
+    ``BrokenPipeError`` (e.g. ``thd75-list-patches | head``) as a
+    successful exit because the consumer has indicated it has read
+    enough; falls back to a generic message for other OS errors so the
+    user never sees a Python traceback.
+    """
+    if isinstance(exc, BrokenPipeError):
+        # Downstream pipe closed (typical of ``thd75-list-patches | head``).
+        # Redirect stdout to /dev/null so the interpreter's final flush
+        # at shutdown does not raise on the already-closed pipe. The
+        # contextlib.suppress is explicit: if /dev/null itself is
+        # unopenable (sandboxed environment, OOM, etc.) we accept the
+        # noisy flush rather than hide a deeper system error.
+        with contextlib.suppress(OSError):
+            sys.stdout = open(os.devnull, "w")
+        sys.exit(0)
+    if isinstance(exc, FileNotFoundError):
+        _die(f"file not found: {exc.filename}")
+    if isinstance(exc, PermissionError):
+        _die(f"permission denied: {exc.filename}")
+    if isinstance(exc, IsADirectoryError):
+        _die(f"path is a directory: {exc.filename}")
+    target = exc.filename or "file"
+    reason = exc.strerror or str(exc)
+    _die(f"cannot access {target}: {reason}")
+
+
 def _validate_output_dir(path: Path) -> None:
     """Ensure ``path`` is a directory we can write into (or doesn't exist yet)."""
     if path.exists() and not path.is_dir():
@@ -64,6 +102,26 @@ def _add_version(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _parse_serial_key(raw: str) -> int:
+    """Parse a ``--key`` string and validate the 0..255 single-byte range.
+
+    Accepts decimal, ``0xHEX``, or ``0oOCT`` via ``int(raw, 0)``.
+    Out-of-range keys are caught here rather than later as opaque
+    ``IndexError`` (decrypt) or silent-wrong roundtrip (negative keys).
+    Raised ``ValueError`` is consumed by argparse and printed as a
+    clean ``argument --key: invalid value`` line.
+    """
+    try:
+        value = int(raw, 0)
+    except ValueError as exc:
+        msg = f"key must be an integer (decimal, 0xHEX, or 0oOCT): {raw!r}"
+        raise argparse.ArgumentTypeError(msg) from exc
+    if not 0 <= value <= 0xFF:
+        msg = f"key must be 0..255, got {value}"
+        raise argparse.ArgumentTypeError(msg)
+    return value
+
+
 # ── thd75-extract ──────────────────────────────────────────────────
 
 
@@ -76,7 +134,8 @@ def main_extract() -> None:
             "Example:\n"
             "  thd75-extract TH-D75_V103_e.exe ./extracted/\n\n"
             "Other tools in this package: thd75-extract-voice, "
-            "thd75-extract-images, thd75-serial-cipher."
+            "thd75-extract-images, thd75-list-patches, thd75-patch, "
+            "thd75-repack, thd75-serial-cipher."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -99,8 +158,8 @@ def main_extract() -> None:
 
     try:
         _run_extract(args.input, args.output, args.verify, args.resource)
-    except FileNotFoundError as exc:
-        _die(f"file not found: {exc.filename}")
+    except OSError as exc:
+        _die_on_os_error(exc)
     except (ValueError, UnicodeDecodeError) as exc:
         _die(str(exc), code=1)
 
@@ -212,11 +271,11 @@ def _extract_flash_address(
     "Block / section metadata format" for the broader resource format.
 
     Raises:
-        ValueError: If the block has no parseable ``$SA=`` line. The
-            previous behavior fell back to ``SECTIONS[block_index]``,
-            which silently misroutes the block when ``$SA=`` is
-            corrupted or the SECTIONS tuple is reordered — exactly
-            the silent-failure mode this tool must avoid.
+        ValueError: If the block has no parseable ``$SA=`` line.
+            Falling back to a positional ``SECTIONS[block_index]``
+            lookup would silently misroute a block whenever ``$SA=``
+            is corrupted or the ``SECTIONS`` tuple is reordered,
+            so we refuse instead.
     """
     for meta_line in block.metadata:
         stripped = meta_line.strip()
@@ -291,7 +350,7 @@ def main_serial_cipher() -> None:
             "  thd75-serial-cipher encrypt plain.bin -o packet.bin\n"
             "  thd75-serial-cipher selftest\n\n"
             "Other tools in this package: thd75-extract, thd75-extract-voice, "
-            "thd75-extract-images."
+            "thd75-extract-images, thd75-list-patches, thd75-patch, thd75-repack."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -314,10 +373,10 @@ def main_serial_cipher() -> None:
         )
         action_parser.add_argument(
             "--key",
-            type=lambda x: int(x, 0),
+            type=_parse_serial_key,
             default=serial_cipher.DEFAULT_KEY,
             help=(
-                "Cipher key as decimal, 0xHEX, or 0oOCT "
+                "Cipher key as decimal, 0xHEX, or 0oOCT, in 0..255 "
                 f"(default: 0x{serial_cipher.DEFAULT_KEY:02X}; 0 = passthrough)"
             ),
         )
@@ -342,8 +401,8 @@ def main_serial_cipher() -> None:
 
     try:
         data: bytes = args.input.read_bytes()
-    except FileNotFoundError as exc:
-        _die(f"file not found: {exc.filename}")
+    except OSError as exc:
+        _die_on_os_error(exc)
 
     # Guard against ``-o some/dir/`` where some/dir/ exists as a directory:
     # write_bytes() would raise IsADirectoryError mid-pipeline. Reject up front.
@@ -355,13 +414,16 @@ def main_serial_cipher() -> None:
     )
     result: bytes = cipher_func(data, args.key)
 
-    if args.output:
-        args.output.write_bytes(result)
-        _log(f"Wrote {len(result):,} bytes to {args.output}")
-    else:
-        _hexdump(result[:64])
-        if len(result) > 64:
-            _log(f"  ... ({len(result) - 64:,} more bytes, use -o to write)")
+    try:
+        if args.output:
+            args.output.write_bytes(result)
+            _log(f"Wrote {len(result):,} bytes to {args.output}")
+        else:
+            _hexdump(result[:64])
+            if len(result) > 64:
+                _log(f"  ... ({len(result) - 64:,} more bytes, use -o to write)")
+    except OSError as exc:
+        _die_on_os_error(exc)
 
 
 def _hexdump(data: bytes, width: int = 16) -> None:
@@ -387,7 +449,7 @@ def main_extract_voice() -> None:
             "  thd75-extract-voice ./extracted/DATA_0160_0x01600000.bin ./prompts/ "
             "--lang en\n\n"
             "Other tools in this package: thd75-extract, thd75-extract-images, "
-            "thd75-serial-cipher."
+            "thd75-list-patches, thd75-patch, thd75-repack, thd75-serial-cipher."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -406,8 +468,8 @@ def main_extract_voice() -> None:
 
     try:
         data: bytes = args.input.read_bytes()
-    except FileNotFoundError as exc:
-        _die(f"file not found: {exc.filename}")
+    except OSError as exc:
+        _die_on_os_error(exc)
 
     _validate_output_dir(args.output)
 
@@ -456,7 +518,7 @@ def main_extract_images() -> None:
             "  thd75-extract-images ./extracted/IMAGE_DATA_0x00600000.bin "
             "./images/\n\n"
             "Other tools in this package: thd75-extract, thd75-extract-voice, "
-            "thd75-serial-cipher."
+            "thd75-list-patches, thd75-patch, thd75-repack, thd75-serial-cipher."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -472,8 +534,8 @@ def main_extract_images() -> None:
 
     try:
         data: bytes = args.input.read_bytes()
-    except FileNotFoundError as exc:
-        _die(f"file not found: {exc.filename}")
+    except OSError as exc:
+        _die_on_os_error(exc)
 
     _validate_output_dir(args.output)
 
@@ -496,3 +558,249 @@ def main_extract_images() -> None:
         exported_count += 1
 
     _log(f"\nExported {exported_count} PNG files to {args.output}/")
+
+
+# ── thd75-patch ──────────────────────────────────────────────────
+
+
+def main_patch() -> None:
+    """Build a patched .KEX firmware file from a TH-D75 updater .exe."""
+    parser = argparse.ArgumentParser(
+        prog="thd75-patch",
+        description=(
+            "Apply a named patch to a TH-D75 updater .exe and write the "
+            "resulting .KEX firmware image. Patches are loaded from the "
+            "built-in catalog or a user-supplied .toml file."
+        ),
+        epilog=(
+            "Example:\n"
+            "  thd75-patch TH-D75_V103_e.exe out.KEX --patch pf-screen-capture\n\n"
+            "List available built-in patches: thd75-list-patches.\n"
+            "The .KEX is the patched firmware as a plaintext image, for "
+            "inspection. To produce a flashable updater, use thd75-repack.\n\n"
+            "Other tools in this package: thd75-extract, thd75-extract-voice, "
+            "thd75-extract-images, thd75-list-patches, thd75-repack, "
+            "thd75-serial-cipher."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    _add_version(parser)
+    parser.add_argument(
+        "input", type=Path, help="Path to the TH-D75 updater .exe",
+    )
+    parser.add_argument(
+        "output", type=Path, help="Path to write the patched .KEX file",
+    )
+    parser.add_argument(
+        "--patch", required=True,
+        help="Patch to apply: a catalog name (see thd75-list-patches) or "
+             "a path to a .toml patch file.",
+    )
+    parser.add_argument(
+        "--resource", type=Path, metavar="FILE",
+        help="Use a pre-extracted resource file instead of scanning the .exe",
+    )
+    args = parser.parse_args()
+
+    # Reject `thd75-patch foo.exe somedir/` before doing any work.
+    if args.output.is_dir():
+        _die(f"output path is a directory, expected a file: {args.output}")
+
+    # Validate the file that will actually be read, before any
+    # ``[N/4]`` progress prints — ``--resource`` shadows the ``.exe``
+    # input, so check the resource path when present.
+    required_input: Path = (
+        args.resource if args.resource is not None else args.input
+    )
+    if not required_input.is_file():
+        _die(f"file not found: {required_input}")
+
+    try:
+        _run_patch(args.input, args.output, args.resource, args.patch)
+    except OSError as exc:
+        _die_on_os_error(exc)
+    except (ValueError, UnicodeDecodeError) as exc:
+        _die(str(exc), code=1)
+
+
+def _run_patch(
+    exe_path: Path,
+    output_path: Path,
+    resource_path: Path | None,
+    patch_id: str,
+) -> None:
+    """Load a resource, apply the named patch, write the .KEX."""
+    _log(f"TH-D75 Firmware Patcher\n  Input: {exe_path}\n  Patch: {patch_id}")
+
+    _log("\n[1/4] Resolving patch...")
+    selected_patch = patch.load_patch(patch_id)
+    _log(f"  {selected_patch.name}: {selected_patch.description.splitlines()[0]}")
+
+    _log("\n[2/4] Loading firmware resource...")
+    if resource_path is not None:
+        resource_text: str = resource_path.read_text(encoding="utf-8")
+    else:
+        resource_text = resource.load(exe_path)
+    _log(f"  {len(resource_text):,} chars")
+
+    _log("\n[3/4] Applying patch...")
+    patched: bytes = kex.patch_kex(resource_text, selected_patch.changes)
+    for change in selected_patch.changes:
+        _log(
+            f"  firmware offset 0x{change.offset:05X}: "
+            f"0x{change.expect:02X} -> 0x{change.value:02X}"
+        )
+
+    _log(f"\n[4/4] Writing patched .KEX ({len(patched):,} bytes) to {output_path}")
+    output_path.write_bytes(patched)
+    _log(
+        "\nDone. The .KEX is the patched firmware image; "
+        "run thd75-repack to build a flashable updater."
+    )
+
+
+# ── thd75-repack ─────────────────────────────────────────────────
+
+
+def main_repack() -> None:
+    """Build a patched copy of the TH-D75 updater .exe."""
+    parser = argparse.ArgumentParser(
+        prog="thd75-repack",
+        description=(
+            "Build a patched copy of the TH-D75 updater .exe by applying a "
+            "named patch to its embedded firmware. The patched updater "
+            "flashes exactly like the official one."
+        ),
+        epilog=(
+            "Example:\n"
+            "  thd75-repack TH-D75_V103_e.exe out.exe --patch pf-screen-capture\n\n"
+            "List available built-in patches: thd75-list-patches.\n"
+            "Run the patched .exe like the official updater (Windows). "
+            "Reflashing firmware always carries some risk; use a fully "
+            "charged radio.\n\n"
+            "Other tools in this package: thd75-extract, thd75-extract-voice, "
+            "thd75-extract-images, thd75-list-patches, thd75-patch, "
+            "thd75-serial-cipher."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    _add_version(parser)
+    parser.add_argument(
+        "input", type=Path, help="Path to the official TH-D75 updater .exe",
+    )
+    parser.add_argument(
+        "output", type=Path, help="Path to write the patched updater .exe",
+    )
+    parser.add_argument(
+        "--patch", required=True,
+        help="Patch to apply: a catalog name (see thd75-list-patches) or "
+             "a path to a .toml patch file.",
+    )
+    args = parser.parse_args()
+
+    if args.output.is_dir():
+        _die(f"output path is a directory, expected a file: {args.output}")
+
+    # Validate input before the ``[N/5]`` progress prints fire.
+    if not args.input.is_file():
+        _die(f"file not found: {args.input}")
+
+    try:
+        _run_repack(args.input, args.output, args.patch)
+    except OSError as exc:
+        _die_on_os_error(exc)
+    except (ValueError, UnicodeDecodeError) as exc:
+        _die(str(exc), code=1)
+
+
+def _run_repack(exe_path: Path, output_path: Path, patch_id: str) -> None:
+    """Patch the updater's embedded firmware and write a new .exe."""
+    _log(f"TH-D75 Updater Repacker\n  Input: {exe_path}\n  Patch: {patch_id}")
+
+    _log("\n[1/5] Resolving patch...")
+    selected_patch = patch.load_patch(patch_id)
+    _log(f"  {selected_patch.name}: {selected_patch.description.splitlines()[0]}")
+
+    _log("\n[2/5] Reading updater .exe...")
+    exe_data: bytes = exe_path.read_bytes()
+    _log(f"  {len(exe_data):,} bytes")
+
+    _log("\n[3/5] Extracting embedded firmware resource...")
+    resource_text: str = resource.extract(exe_data)
+    _log(f"  {len(resource_text):,} chars")
+
+    _log("\n[4/5] Applying patch...")
+    patched_resource: str = kex.patch_resource(resource_text, selected_patch.changes)
+    for change in selected_patch.changes:
+        _log(
+            f"  firmware offset 0x{change.offset:05X}: "
+            f"0x{change.expect:02X} -> 0x{change.value:02X}"
+        )
+
+    _log(f"\n[5/5] Writing patched updater to {output_path}")
+    patched_exe: bytes = resource.replace(exe_data, patched_resource)
+    output_path.write_bytes(patched_exe)
+    _log(f"  {len(patched_exe):,} bytes")
+    _log("\nDone. Run the patched updater like the official one.")
+
+
+# ── thd75-list-patches ───────────────────────────────────────────
+
+
+def main_list_patches() -> None:
+    """List every built-in patch in the catalog."""
+    parser = argparse.ArgumentParser(
+        prog="thd75-list-patches",
+        description=(
+            "List every patch shipped in the built-in catalog. Each entry "
+            "shows the patch name (the value to pass as --patch to "
+            "thd75-patch / thd75-repack), its target firmware, the byte "
+            "changes it makes, and its full description."
+        ),
+        epilog=(
+            "Example:\n"
+            "  thd75-list-patches\n\n"
+            "Apply a catalog patch:\n"
+            "  thd75-repack TH-D75_V103_e.exe out.exe --patch <name>\n\n"
+            "Other tools in this package: thd75-extract, thd75-extract-voice, "
+            "thd75-extract-images, thd75-patch, thd75-repack, "
+            "thd75-serial-cipher."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    _add_version(parser)
+    parser.parse_args()
+
+    try:
+        patches: list[patch.Patch] = list(patch.iter_catalog())
+    except OSError as exc:
+        _die_on_os_error(exc)
+    except ValueError as exc:
+        _die(f"failed to read catalog: {exc}", code=1)
+
+    # This is the real output (operators may pipe it through grep), so
+    # use stdout via print() instead of _log() which writes to stderr.
+    # ``_die_on_os_error`` handles BrokenPipeError if the consumer
+    # (e.g. ``thd75-list-patches | head``) closes the pipe mid-print.
+    try:
+        if not patches:
+            print("(no built-in patches)")
+            return
+
+        for index, entry in enumerate(patches):
+            if index > 0:
+                print()
+            print(entry.name)
+            target: str = entry.target_firmware or "unspecified"
+            print(f"  target firmware: {target}")
+            print(f"  changes ({len(entry.changes)}):")
+            for change in entry.changes:
+                print(
+                    f"    offset 0x{change.offset:05X}: "
+                    f"0x{change.expect:02X} -> 0x{change.value:02X}"
+                )
+            print("  description:")
+            for line in entry.description.splitlines():
+                print(f"    {line}")
+    except OSError as exc:
+        _die_on_os_error(exc)

@@ -10,7 +10,7 @@ Firmware extraction and cipher tools for the Kenwood TH-D75 amateur radio transc
 
 ## What This Does
 
-Extracts the 7 firmware sections from the official Kenwood TH-D75 firmware updater executable. Also provides encrypt/decrypt for the serial transfer cipher used during USB firmware updates.
+Extracts the 7 firmware sections from the official Kenwood TH-D75 firmware updater executable, and applies user-defined patches to that firmware — as a plaintext `.KEX` image, or by repacking the updater `.exe` itself. Patches are TOML files: ship your own, or pick from the built-in catalog. Also provides encrypt/decrypt for the serial transfer cipher used during USB firmware updates.
 
 **Two independent ciphers are implemented:**
 
@@ -30,7 +30,7 @@ pip install thd75-fw
 With uv:
 
 ```bash
-uv tool install thd75-fw    # all four CLIs globally
+uv tool install thd75-fw    # all seven CLIs globally
 uv add thd75-fw             # or add as a project dependency
 ```
 
@@ -42,78 +42,26 @@ uvx --from thd75-fw thd75-extract TH-D75_V103_e.exe ./out/
 
 ## Usage
 
-### Extract firmware from updater
+The package installs seven CLIs and a typed Python library:
+
+| CLI | Purpose |
+|-----|---------|
+| `thd75-extract` | Extract the 7 firmware sections from the updater `.exe` |
+| `thd75-extract-voice` | Extract 749 voice prompts as 8 kHz mono WAV |
+| `thd75-extract-images` | Extract 862 PNG display images |
+| `thd75-patch` | Apply a patch and emit a plaintext `.KEX` image |
+| `thd75-repack` | Apply a patch and emit a flashable updater `.exe` |
+| `thd75-list-patches` | List the built-in patch catalog |
+| `thd75-serial-cipher` | Encrypt/decrypt individual serial packets |
 
 ```bash
 thd75-extract TH-D75_V103_e.exe ./extracted/
+thd75-repack TH-D75_V103_e.exe out.exe --patch pf-screen-capture
 ```
 
-### Verify against known-good files
+**Reflashing firmware carries inherent risk.** Use a fully charged radio.
 
-```bash
-thd75-extract TH-D75_V103_e.exe ./out/ --verify ./known-good/
-```
-
-### Serial cipher (encrypt/decrypt individual packets)
-
-```bash
-thd75-serial-cipher decrypt packet.bin -o plain.bin
-thd75-serial-cipher encrypt plain.bin -o packet.bin
-thd75-serial-cipher selftest
-```
-
-### Extract voice prompts as WAV
-
-```bash
-thd75-extract-voice ./extracted/DATA_0160_0x01600000.bin ./prompts/
-thd75-extract-voice ./extracted/DATA_0160_0x01600000.bin ./prompts/ --lang en
-```
-
-Extracts 749 voice prompts (327 English, 356 Japanese, 66 Chinese) as 8 kHz mono WAV files.
-
-### Extract display images as PNG
-
-```bash
-thd75-extract-images ./extracted/IMAGE_DATA_0x00600000.bin ./images/
-```
-
-Extracts 862 PNG images (APRS symbols, status icons, splash screens, UI elements).
-
-### Use as a Python library
-
-The same primitives that power the CLIs are exposed as importable functions:
-
-```python
-from pathlib import Path
-from thd75_fw.serial_cipher import encrypt, decrypt
-from thd75_fw.sections import lookup_by_address
-from thd75_fw import voice
-
-# Round-trip a serial packet (default key 0x75)
-ciphertext = encrypt(b"hello world")
-assert decrypt(ciphertext) == b"hello world"
-
-# Look up a section by flash address
-info = lookup_by_address(0x01600000)
-assert info is not None and info.name == "DATA_0160"
-
-# Parse a voice prompt database
-data = Path("./extracted/DATA_0160_0x01600000.bin").read_bytes()
-database = voice.load(data)
-print(f"{len(database.prompts)} prompts: {len(database.by_language('en'))} en")
-```
-
-Inline single-file scripts work too — paste this into `decode.py` and run with `uv run decode.py`:
-
-```python
-# /// script
-# requires-python = ">=3.10"
-# dependencies = ["thd75-fw"]
-# ///
-import sys
-from thd75_fw.serial_cipher import decrypt
-sys.stdout.buffer.write(decrypt(sys.stdin.buffer.read()))
-```
+See [`docs/USAGE.md`](./docs/USAGE.md) for per-CLI examples, the patch TOML schema, and Python library usage.
 
 ## Extracted Sections
 
@@ -156,23 +104,69 @@ uv sync
 
 Both read the same `[dependency-groups]` table in `pyproject.toml`.
 
-## Legal Disclaimer
-
-**This software is provided for amateur radio interoperability and educational purposes only.**
-
-This project reverse-engineers the encryption used by the Kenwood TH-D75 firmware updater to enable firmware analysis, interoperability research, and amateur radio experimentation. It does not contain, distribute, or facilitate unauthorized access to any copyrighted firmware. Users are responsible for obtaining firmware images through legitimate means.
-
-Reverse engineering for interoperability is protected under:
-- **United States**: DMCA §1201(f) (reverse engineering for interoperability); *Sega v. Accolade* (9th Cir. 1992); *Oracle v. Google* (S.Ct. 2021)
-- **European Union**: Directive 2009/24/EC, Article 6 (decompilation for interoperability)
-
-"Kenwood" and "TH-D75" are trademarks of JVCKENWOOD Corporation. This project is not affiliated with, endorsed by, or sponsored by JVCKENWOOD Corporation.
-
-**No warranty.** This software is provided "as is" without warranty of any kind. Use at your own risk. Do not use this software to modify radio firmware in ways that violate FCC Part 97 or your local amateur radio regulations.
-
 ## Acknowledgments
 
 This project builds on the prior reverse engineering work by [DD4CR](https://github.com/cr) on the Kenwood TH-D74: [github.com/cr/thd74](https://github.com/cr/thd74). Their documentation of the D74 firmware update protocol, `.NET` updater structure, and XOR permutation cipher provided the foundation for the D75 analysis. The D75 ciphers are evolutionary variations on the same cryptographic primitives (modular arithmetic, XOR, single-byte keys), though with different compositions and key schedules.
+
+## Legal Disclaimer & Interoperability Notice
+
+**This software is provided for amateur radio interoperability and educational research only.**
+
+### Interoperability & Essentiality
+
+The decryption and re-encryption implementations provided in this project are **required for interoperability** with the Kenwood TH-D75 transceiver. Without these technical measures, it is impossible for an owner of the device to:
+
+1. **Analyze and verify** the firmware running on their own equipment (security research).
+2. **Maintain and repair** their equipment by modifying or updating firmware outside of official, closed-source tools (right to repair).
+3. **Develop independent software** that can interact with the radio's serial update protocol.
+
+These implementations were derived solely through black-box analysis of the publicly available firmware updater binary to understand the undocumented protocols necessary for cross-platform interoperability.
+
+### Reverse-Engineering Methodology
+
+All analysis underlying this project was conducted under strict clean-room methodology:
+
+- **Source material**: Solely the publicly distributed Windows firmware updater binary (`TH-D75_V*_e.exe`), obtained from JVCKENWOOD's official public download channels and lawfully accessible to any member of the public.
+- **Tooling**: Only commercially licensed or open-source reverse engineering tools (e.g., IDA Pro, Ghidra, standard UNIX utilities). No Kenwood-proprietary tools, undisclosed utilities, or non-public debugging interfaces were used.
+- **Non-use of confidential material**: No JVCKENWOOD source code, internal documentation, datasheets under non-disclosure agreement, leaked materials, or other confidential information was consulted at any stage of analysis or implementation.
+- **No insider involvement**: No contributor to this project has any past or present employment, consulting relationship, contractual obligation, or non-disclosure agreement with JVCKENWOOD Corporation or any of its affiliates that bears on the subject matter of this work.
+
+This methodology comports with the intermediate-copying-for-interoperability fair-use analysis established in *Sega Enterprises Ltd. v. Accolade, Inc.*, 977 F.2d 1510 (9th Cir. 1992), and with prevailing clean-room reverse engineering practice.
+
+### Non-Distribution of Copyrighted Firmware
+
+This repository **does not contain, embed, redistribute, or mirror** any portion of Kenwood firmware, voice data, image data, fonts, DSP code, or other copyrighted material owned by JVCKENWOOD Corporation. The tools provided operate exclusively on firmware updater binaries that the end user has independently obtained from JVCKENWOOD's official public distribution channels and is legally entitled to use on hardware they own. No copyrighted Kenwood output is generated, transmitted, or stored by this project itself.
+
+### Compliance & Rights
+
+Modification of lawfully acquired software for use on hardware owned by the user, and reverse engineering performed for the purpose of achieving interoperability, are protected under:
+
+**United States:**
+- **17 U.S.C. §117(a)** — the owner of a copy of a computer program may make or authorize the making of adaptations of that program as an essential step in its utilization in conjunction with a machine.
+- **17 U.S.C. §1201(f)** ([DMCA interoperability exception](https://www.law.cornell.edu/uscode/text/17/1201)) — circumvention of technological protection measures is permitted for the sole purpose of enabling interoperability of an independently created computer program with other programs.
+- **U.S. Copyright Office, 9th Triennial §1201 Rulemaking (2024)**, codified at 37 C.F.R. §201.40 — renewed and expanded [exemptions](https://www.copyright.gov/1201/) covering (i) good-faith security research on lawfully acquired software-enabled devices and (ii) diagnosis, maintenance, and repair of lawfully acquired consumer devices, including those incorporating computer programs.
+- **15 U.S.C. §2302(c)** (Magnuson-Moss Warranty Act) — a warrantor may not condition warranty coverage on the consumer's use of articles or services identified by brand or trade name unless provided without charge or by FTC waiver; consumer warranty rights are preserved when third-party software or repair is used.
+- Case law: *Chamberlain Group, Inc. v. Skylink Techs., Inc.*, 381 F.3d 1178 (Fed. Cir. 2004) (a §1201 claim requires a reasonable nexus between the access sought and protected rights under the Copyright Act); *Lexmark Int'l, Inc. v. Static Control Components, Inc.*, 387 F.3d 522 (6th Cir. 2004) (technological measures that lock out competing interoperable products, without protecting copyrighted expression, are not shielded by §1201); *Sega Enterprises Ltd. v. Accolade, Inc.*, 977 F.2d 1510 (9th Cir. 1992) (intermediate copying for the purpose of understanding unprotected functional elements is fair use); *Google LLC v. Oracle America, Inc.*, 593 U.S. 1 (2021) (transformative use of functional software interfaces is fair use).
+
+**European Union:**
+- [**Directive 2009/24/EC**](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32009L0024), **Articles 5(3) and 6** — the lawful acquirer of a program may observe, study, and test its functioning, and may decompile it where necessary to achieve interoperability with an independently created program.
+- **Directive (EU) 2024/1799** (Right to Repair Directive, adopted 2024) and **Directive (EU) 2019/771** (Sale of Goods Directive) — consumer right to repair and continued use of lawfully acquired goods.
+
+### User Responsibilities
+
+- **Firmware ownership**: Users must obtain Kenwood firmware through legitimate means (e.g., from JVCKENWOOD's official website) and must possess the legal right to use and modify that firmware on hardware they own.
+- **Non-infringement**: This tool is not intended to, and must not be used to, facilitate the unauthorized distribution of copyrighted works or to bypass access controls for the purpose of copyright infringement.
+- **Regulatory compliance**: Users are solely responsible for ensuring any firmware modifications comply with applicable amateur radio regulations (e.g., FCC Part 97 in the United States; equivalent national regulations elsewhere). Transmitting outside one's licensed privileges — frequency, mode, bandwidth, or power — remains the user's sole responsibility regardless of what this software makes technically possible.
+
+### Trademark Notice
+
+"Kenwood" and "TH-D75" are trademarks of JVCKENWOOD Corporation. These marks are used here under **nominative fair use** solely to identify the equipment for which this interoperability tool is designed. This project is not affiliated with, endorsed by, or sponsored by JVCKENWOOD Corporation.
+
+### Severability and Warranty
+
+If any provision of this notice is held to be invalid or unenforceable in any jurisdiction, the remaining provisions shall remain in full force and effect, and the invalid provision shall be reformed only to the extent necessary to make it enforceable while preserving its intent.
+
+**No warranty.** This software is provided "as is", without warranty of any kind, express or implied, including without limitation the warranties of merchantability, fitness for a particular purpose, and non-infringement. Reflashing radio firmware carries inherent risk and may render the device permanently inoperable. Use entirely at your own risk.
 
 ## License
 

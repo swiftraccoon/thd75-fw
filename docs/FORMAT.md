@@ -224,9 +224,17 @@ Byte LL+4  : CC (checksum byte; not validated by thd75-fw)
 
 ## Section catalog
 
-V1.03 produces 7 sections. The flash addresses below are absolute
-physical addresses in the SoC's flash region (base `0x60000000`); the
-filenames `thd75-fw` writes use these offsets directly.
+V1.03 produces 7 sections. The "Flash address" column below shows
+each section's **offset from the NOR flash base** (`0x60000000` in
+the OMAP-L138 memory map). The full physical address at which the
+section lives at runtime is `0x60000000 + offset` — e.g. `FIRMWARE`
+sits at physical `0x60200000`, derived from offset `0x00200000`.
+The filenames `thd75-fw` writes use these offsets directly, matching
+the `$SA=` value in the encrypted resource minus the flash base.
+Patch authors should write `offset = <flat-image-offset>` against
+the FIRMWARE section's flat image, which starts at offset 0 within
+the `FIRMWARE_0x00200000.bin` file (i.e. flash offset `0x00200000`
+maps to flat-image offset `0`).
 
 | Section | Flash address | Size (V1.03) | Purpose |
 |---------|---------------|--------------|---------|

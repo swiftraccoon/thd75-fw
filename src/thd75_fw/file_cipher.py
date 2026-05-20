@@ -25,6 +25,7 @@ __all__: list[str] = [
     "RollingKeyState",
     "decrypt_line",
     "decrypt_resource",
+    "encrypt_line",
 ]
 
 _DEFAULT_KEY: int = 39
@@ -121,6 +122,32 @@ def decrypt_line(line: str, state: RollingKeyState) -> tuple[str, bytes]:
         state.advance()
 
     return (line_type, bytes(decrypted))
+
+
+def encrypt_line(plaintext: bytes, marker: str, state: RollingKeyState) -> str:
+    """Encrypt one line — the exact inverse of ``decrypt_line``.
+
+    Args:
+        plaintext: The line's plaintext bytes (without the marker).
+        marker: The one-character line marker, emitted verbatim. ``$``
+            marks a metadata line; the updater's resource uses a hex
+            digit for data lines. ``decrypt_line`` classifies a line by
+            this character, so re-ciphering must preserve it exactly.
+        state: Rolling cipher state — mutated in place, advancing one
+            step per byte exactly as ``decrypt_line`` does, so the two
+            directions stay in sync across a continuous stream.
+
+    Returns:
+        The encrypted line: ``marker`` followed by two uppercase hex
+        characters per plaintext byte.
+    """
+    pieces: list[str] = [marker]
+    for one_based_index, plaintext_byte in enumerate(plaintext, start=1):
+        xored = (plaintext_byte + state.key) & 0xFF
+        raw_byte = xored ^ ((one_based_index & 1) * 0xFF)
+        pieces.append(f"{raw_byte:02X}")
+        state.advance()
+    return "".join(pieces)
 
 
 @dataclass(frozen=True, slots=True)

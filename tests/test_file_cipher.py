@@ -11,6 +11,7 @@ from thd75_fw.file_cipher import (
     RollingKeyState,
     decrypt_line,
     decrypt_resource,
+    encrypt_line,
 )
 
 if TYPE_CHECKING:
@@ -190,3 +191,31 @@ class TestMultiBlockContinuity:
         ])
         result = decrypt_resource(encrypted)
         assert result.data == b"\x01\x02\x03\x04\x05\x06"
+
+
+class TestEncryptLine:
+    """``encrypt_line`` is the exact inverse of ``decrypt_line`` — needed
+    to re-cipher a patched resource when repacking the updater."""
+
+    def test_round_trip_recovers_plaintext(self) -> None:
+        encrypted = encrypt_line(b"$SA=0x60200000", "$", RollingKeyState())
+        line_type, recovered = decrypt_line(encrypted, RollingKeyState())
+        assert line_type == "$"
+        assert recovered == b"$SA=0x60200000"
+
+    def test_re_encrypt_reproduces_original_line(self) -> None:
+        # Decrypt an encrypted line, then re-encrypt with the same marker:
+        # the cipher is positional, so this must be the identity.
+        original = encrypt_line(b"\x10\x20\x30\x40", "7", RollingKeyState())
+        _, plaintext = decrypt_line(original, RollingKeyState())
+        assert encrypt_line(plaintext, "7", RollingKeyState()) == original
+
+    def test_advances_state_one_step_per_byte(self) -> None:
+        state = RollingKeyState(key=0, step=1)
+        encrypt_line(b"\xAA\xBB\xCC", "D", state)
+        assert state.key == 3
+
+    def test_marker_only_line_has_no_pairs(self) -> None:
+        state = RollingKeyState(key=39)
+        assert encrypt_line(b"", "$", state) == "$"
+        assert state.key == 39  # no bytes processed → no advance

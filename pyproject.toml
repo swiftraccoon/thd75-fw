@@ -29,6 +29,9 @@ classifiers = [
     "Topic :: System :: Hardware",
     "Typing :: Typed",
 ]
+dependencies = [
+    "tomli >= 1.1.0; python_version < '3.11'",
+]
 
 [project.urls]
 Homepage = "https://github.com/swiftraccoon/thd75-fw"
@@ -40,6 +43,9 @@ Changelog = "https://github.com/swiftraccoon/thd75-fw/blob/main/CHANGELOG.md"
 thd75-extract = "thd75_fw.cli:main_extract"
 thd75-extract-voice = "thd75_fw.cli:main_extract_voice"
 thd75-extract-images = "thd75_fw.cli:main_extract_images"
+thd75-list-patches = "thd75_fw.cli:main_list_patches"
+thd75-patch = "thd75_fw.cli:main_patch"
+thd75-repack = "thd75_fw.cli:main_repack"
 thd75-serial-cipher = "thd75_fw.cli:main_serial_cipher"
 
 [tool.hatch.version]
@@ -48,8 +54,38 @@ path = "src/thd75_fw/__init__.py"
 [tool.hatch.build.targets.wheel]
 packages = ["src/thd75_fw"]
 
+[tool.hatch.build.targets.sdist]
+# Explicit include list — Hatchling's default is "everything except VCS
+# dirs", which leaks .vscode/, .hypothesis/, .mypy_cache/, dist/,
+# local-only patch outputs (*.exe / *.KEX), internal planning docs,
+# and other cache/editor state into the published sdist. Whitelist
+# what should ship; specifically enumerate user-facing docs so a new
+# internal-only doc tree (e.g. AI workflow notes) doesn't leak by
+# accident.
+include = [
+    "/src",
+    "/tests",
+    "/docs/FORMAT.md",
+    "/docs/USAGE.md",
+    "/loaders",
+    "/CHANGELOG.md",
+    "/LICENSE",
+    "/README.md",
+    "/pyproject.toml",
+    "/pyrightconfig.json",
+]
+exclude = [
+    "**/__pycache__",
+    "**/*.py[cod]",
+]
+
 [dependency-groups]
-dev = ["pytest", "pytest-cov", "ruff", "mypy", "pyright", "hypothesis"]
+# tomli is the py<3.11 runtime fallback (see [project] dependencies). It's
+# also listed here so the ``import tomli as tomllib`` branch in patch.py
+# type-checks under mypy/pyright running on Python 3.11+, where the runtime
+# dependency is not installed (pyrightconfig.json pins pythonVersion=3.10,
+# so static analysis takes the else-branch regardless of host Python).
+dev = ["pytest", "pytest-cov", "ruff", "mypy", "pyright", "hypothesis", "tomli"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
