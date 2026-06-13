@@ -82,7 +82,7 @@ jobs:
           python-version: "3.13"
       - run: pip install pytest pytest-cov hypothesis
       - run: PYTHONPATH=src pytest tests/ --cov=thd75_fw --cov-report=xml --cov-report=term
-      - uses: codecov/codecov-action@v6
+      - uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.xml
