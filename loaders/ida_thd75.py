@@ -6,9 +6,9 @@ is loaded by filename and applies appropriate configuration:
 
   - Sets segment permissions to RWX (IDA refuses code creation otherwise)
   - Sets segment bitness to 32-bit (ARM)
-  - Rebases the segment to the flash address parsed from the filename,
-    so addresses in IDA match the README's section table (e.g.,
-    `FIRMWARE_0x00200000.bin` → segment starts at 0x00200000).
+  - Maps `FIRMWARE` at runtime DDR `0xC0000000`, so a pointer of the
+    form `0xC0000000 + flat_offset` resolves inside the extracted blob.
+    Other sections map to CPU-visible NOR (`0x60000000 + filename offset`).
   - For FIRMWARE: marks the 7 active ARM exception vector slots as code
     (slot 0x14 is reserved on ARMv5+ and decoded as data), names each,
     labels the literal pool, and triggers cascade auto-analysis —
@@ -29,50 +29,50 @@ so you may need to delete the .i64 and reopen with ``-pARM``.
 CONFIGURATION
 -------------
 
-Set ``REBASE_TO_FLASH_ADDRESS = False`` below to skip the auto-rebase
-and keep the segment at file-offset 0. Otherwise the script extracts
-the flash address from the filename (e.g., 0x00200000 from
-``FIRMWARE_0x00200000.bin``) and rebases automatically.
+Set ``REBASE_TO_ANALYSIS_ADDRESS = False`` below to skip the auto-rebase
+and keep the segment at file-offset 0. The filename value (for example,
+``0x00200000`` in ``FIRMWARE_0x00200000.bin``) remains the NOR-relative
+source offset; it is not the main image's runtime code address.
 """
 
 from __future__ import annotations
 
-import os
 import re
+from pathlib import Path
 
 import ida_auto
 import ida_bytes
 import ida_idp
-import ida_kernwin
 import ida_name
 import ida_segment
 import ida_ua
 import idc
 
-# Auto-rebase the segment to the flash address parsed from the filename.
-# When True (default): segment ends up at e.g. 0x00200000 for FIRMWARE,
-# matching the addresses in README's section table and matching the
-# physical flash layout. When False: segment stays at file offset 0.
-REBASE_TO_FLASH_ADDRESS: bool = True
+# The updater stores section addresses as offsets within the CPU-visible NOR
+# window. Main-firmware pointers instead follow the flat DDR mapping
+# C0000000+file_offset. Mapping that blob at DDR makes its handler pointers and
+# service tables resolve without inventing a separate runtime blob. This does
+# not prove the uncaptured D75 low bootloader's exact copy/entry semantics.
+NOR_WINDOW_BASE: int = 0x6000_0000
+FIRMWARE_RUNTIME_BASE: int = 0xC000_0000
+REBASE_TO_ANALYSIS_ADDRESS: bool = True
 
-# Format: (offset, label, plate_comment)
+# Each entry is a vector offset, its label, and its plate comment.
 # Slot at 0x14 is reserved on ARMv5+ (was "address exception" in ARMv4 and
 # earlier) and is conventionally left as zero / DCB 0.
 VECTORS: list[tuple[int, str, str]] = [
-    (0x00, "reset_vector",          "Reset"),
-    (0x04, "undef_vector",          "Undefined Instruction"),
-    (0x08, "svc_vector",            "Supervisor Call (SWI)"),
+    (0x00, "reset_vector", "Reset"),
+    (0x04, "undef_vector", "Undefined Instruction"),
+    (0x08, "svc_vector", "Supervisor Call (SWI)"),
     (0x0C, "prefetch_abort_vector", "Prefetch Abort"),
-    (0x10, "data_abort_vector",     "Data Abort"),
-    (0x18, "irq_vector",            "IRQ"),
-    (0x1C, "fiq_vector",            "FIQ"),
+    (0x10, "data_abort_vector", "Data Abort"),
+    (0x18, "irq_vector", "IRQ"),
+    (0x1C, "fiq_vector", "FIQ"),
 ]
 
 # Pattern matches filenames produced by `thd75-extract`,
 # e.g. "FIRMWARE_0x00200000.bin", "DATA_0160_0x01600000.bin".
-_FILENAME_RE = re.compile(
-    r"^(?P<name>[A-Z0-9_]+?)_0x(?P<addr>[0-9A-Fa-f]{8})\.bin$"
-)
+_FILENAME_RE = re.compile(r"^(?P<name>[A-Z0-9_]+?)_0x(?P<addr>[0-9A-Fa-f]{8})\.bin$")
 
 
 def _msg(text: str) -> None:
@@ -102,9 +102,7 @@ def _ensure_arm_processor() -> bool:
 def _configure_segment(seg: ida_segment.segment_t) -> None:
     """Set RWX permissions and 32-bit bitness so IDA accepts code creation."""
     seg.perm = (
-        ida_segment.SEGPERM_EXEC
-        | ida_segment.SEGPERM_READ
-        | ida_segment.SEGPERM_WRITE
+        ida_segment.SEGPERM_EXEC | ida_segment.SEGPERM_READ | ida_segment.SEGPERM_WRITE
     )
     seg.type = ida_segment.SEG_CODE
     seg.bitness = 1  # 0=16, 1=32, 2=64
@@ -133,15 +131,22 @@ def _annotate_arm_vectors(base: int) -> None:
         ida_bytes.create_dword(base + off, 4)
 
 
-def _detect_section() -> tuple[str | None, int | None]:
-    """Parse the loaded filename for section name + flash address."""
+def _detect_section() -> tuple[str, int] | None:
+    """Parse the loaded filename for section name + NOR-relative offset."""
     path = idc.get_input_file_path()
     if not path:
-        return (None, None)
-    match = _FILENAME_RE.match(os.path.basename(path))
+        return None
+    match = _FILENAME_RE.match(Path(path).name)
     if not match:
-        return (None, None)
+        return None
     return (match.group("name"), int(match.group("addr"), 16))
+
+
+def _analysis_base(section_name: str, flash_offset: int) -> int:
+    """Return the address at which this flat blob should be analyzed."""
+    if section_name == "FIRMWARE":
+        return FIRMWARE_RUNTIME_BASE
+    return NOR_WINDOW_BASE + flash_offset
 
 
 def _rebase_to(target_addr: int, current_seg: ida_segment.segment_t) -> bool:
@@ -163,6 +168,7 @@ def _rebase_to(target_addr: int, current_seg: ida_segment.segment_t) -> bool:
 
 
 def main() -> None:
+    """Configure the loaded thd75-fw section: segment, rebase and vectors."""
     if not _ensure_arm_processor():
         return
 
@@ -174,17 +180,25 @@ def main() -> None:
     _configure_segment(seg)
     _msg(f"segment configured: {hex(seg.start_ea)}-{hex(seg.end_ea)} RWX 32-bit")
 
-    section_name, flash_addr = _detect_section()
-    if section_name is None:
-        _msg("filename did not match thd75-extract pattern; "
-             "skipping section-specific setup")
+    detected = _detect_section()
+    if detected is None:
+        _msg(
+            "filename did not match thd75-extract pattern; "
+            "skipping section-specific setup"
+        )
         return
 
-    _msg(f"detected section: {section_name} (flash 0x{flash_addr:08X})")
+    section_name, flash_offset = detected
+    nor_source = NOR_WINDOW_BASE + flash_offset
+    target_base = _analysis_base(section_name, flash_offset)
+    _msg(
+        f"detected section: {section_name} "
+        f"(NOR offset 0x{flash_offset:08X}, source 0x{nor_source:08X})"
+    )
 
-    # Optionally rebase so addresses in IDA match the README's section table.
-    if REBASE_TO_FLASH_ADDRESS:
-        if not _rebase_to(flash_addr, seg):
+    # Map main code at runtime DDR; map standalone data at CPU-visible NOR.
+    if REBASE_TO_ANALYSIS_ADDRESS:
+        if not _rebase_to(target_base, seg):
             return
         # After rebase, refresh our segment handle since start_ea changed.
         seg = ida_segment.get_first_seg()
@@ -195,8 +209,11 @@ def main() -> None:
         _annotate_arm_vectors(base)
         _msg("ARM exception vectors annotated; running auto-analysis...")
         ida_auto.plan_and_wait(seg.start_ea, seg.end_ea)
-        _msg("done. handler addresses (in OMAP-L138 DDR at 0xC0xxxxxx) point "
-             "outside this segment — the runtime image lives in DDR after boot.")
+        _msg("done. flat offset N is mapped to runtime address 0xC0000000 + N")
+        _msg(
+            "the updater stores this image at NOR source 0x60200000; exact "
+            "D75 low-boot copy/entry checks remain unconfirmed"
+        )
     elif section_name in ("DATA_0160", "IMAGE_DATA", "FONT_DATA", "DATA_00E0"):
         _msg(f"{section_name} is a data blob, not code — no analysis applied.")
         _msg("use the appropriate thd75-fw extractor for structured access:")
@@ -205,11 +222,16 @@ def main() -> None:
         _msg("  - DATA_00E0 (AMBE2+ DSP):     no extractor (proprietary format)")
         _msg("  - FONT_DATA (Shift-JIS bitmaps):  no extractor yet")
     elif section_name == "CHECKBYTES":
-        _msg("CHECKBYTES is a 2-byte bootloader integrity checksum.")
+        _msg(
+            "CHECKBYTES is the stock V1.03 B0 1D overlay at 0x60200062; "
+            "its D75 early-boot consumer and meaning are unconfirmed"
+        )
         ida_bytes.create_word(base, 2)
     elif section_name == "FINAL_ZZZ":
-        _msg("FINAL_ZZZ is a 32-byte build marker written last to confirm "
-             "update completion.")
+        _msg(
+            "FINAL_ZZZ is the stock 32-byte overlay written last at "
+            "0x60200040; its D75 early-boot meaning is unconfirmed"
+        )
 
 
 if __name__ == "__main__":

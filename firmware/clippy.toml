@@ -1,0 +1,32 @@
+# Clippy configuration for the firmware/ workspace.
+#
+# `doc-valid-idents` extends clippy's default list with the project-
+# specific technical terms that show up throughout the bare-metal docs.
+# The leading `".."` keeps the entire default list (ASCII, ARM, etc.)
+# active; the rest are our additions.
+#
+# Without this, `clippy::pedantic`'s `doc_markdown` lint fires on bare
+# uses of these terms in doc comments (e.g. "the SoC's UART") and
+# demands backticks around every occurrence. Listing them once here is
+# clearer than backticking ad-hoc throughout the source.
+
+doc-valid-idents = [
+    "..",
+    # SoC + family
+    "SoC", "OMAP-L138", "OMAPL138EZCEA3", "ARM926EJ-S", "TI",
+    # Peripherals
+    "EMIFA", "MMIO", "MMIOs", "IrDA", "CIR", "GPIO",
+    # NOR flash chip
+    "S29GL256S", "Spansion",
+    # UART registers / bits
+    "PWREMU_MGMT", "URRST", "UTRST", "THRE", "TEMT", "DLAB",
+    "FIFOEN", "RXCLR", "TXCLR",
+    "THR", "RBR", "DLL", "DLH", "IER", "IIR", "FCR", "LCR",
+    "MCR", "LSR", "MSR", "SCR", "TCR", "TLR", "MDR",
+    # Clock + bus
+    "PLL0_SYSCLK4", "AUXCLK", "TCXO",
+    # Firmware-update protocol
+    "FLDM", "FldmLoader", "KEX", "FINAL_ZZZ",
+    # Radio + project terms
+    "TH-D75", "TH-D74", "PTT",
+]

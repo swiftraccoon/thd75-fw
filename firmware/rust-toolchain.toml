@@ -1,0 +1,15 @@
+# Nightly toolchain is required because ``armv5te-none-eabi`` is a Rust
+# Tier-3 target: it is not in ``rustup target list`` and ``core`` must
+# be rebuilt from source via ``cargo build -Z build-std=core`` (a
+# nightly-only Cargo flag). The ``llvm-tools-preview`` component
+# supplies ``llvm-objcopy`` for stripping the linked ELF down to a
+# flat ``.bin`` the flasher can ship as a single FLDM segment.
+#
+# Pinned to a recent nightly to keep the build reproducible; bump as
+# needed. As of the pin date Rust stable was 1.95.0 and nightly was on
+# the 1.97.0 series.
+
+[toolchain]
+channel    = "nightly-2026-05-20"
+components = ["rust-src", "llvm-tools-preview", "clippy", "rustfmt"]
+profile    = "minimal"

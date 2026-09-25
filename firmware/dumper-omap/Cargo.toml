@@ -1,0 +1,38 @@
+[package]
+name         = "dumper-omap"
+version      = "0.1.0"
+edition      = "2024"
+rust-version = "1.95"
+description  = "OMAP-L138 SoC register definitions and safe MMIO wrappers for the TH-D75 firmware payloads."
+authors      = ["Swift Raccoon"]
+license      = "GPL-2.0-or-later"
+publish      = false
+
+# This crate is the *only* place in the firmware workspace that contains
+# `unsafe { ... }` blocks. The `unsafe_code` lint is set to "deny"
+# rather than "forbid" so a handful of audited MMIO primitives in
+# `src/registers.rs` can opt in via `#[allow(unsafe_code, reason = "…")]`
+# with `// SAFETY:` comments on every unsafe block. Every other module
+# in the crate stays safe; every consumer (`dumper`) is also `deny`,
+# with three localized allows on the unsafe attributes
+# (`#[unsafe(no_mangle)]`, `#[unsafe(link_section = …)]`) that the
+# Rust 2024 edition requires for any bare-metal entry point.
+
+[lints.rust]
+unsafe_code                = "deny"
+missing_docs               = "deny"
+missing_debug_implementations = "deny"
+elided_lifetimes_in_paths  = "deny"
+trivial_casts              = "deny"
+unreachable_pub            = "deny"
+unused_qualifications      = "deny"
+
+[lints.clippy]
+all      = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+nursery  = { level = "deny", priority = -1 }
+cargo    = { level = "deny", priority = -1 }
+allow_attributes                = "deny"
+allow_attributes_without_reason = "deny"
+
+[dependencies]

@@ -14,3 +14,11 @@ build/
 coverage.xml
 htmlcov/
 ref/
+target/
+
+# Recovery / extracted vendor firmware. Per the README's
+# Non-Distribution policy this repository never embeds or
+# redistributes Kenwood firmware bytes; the recovery/ tree
+# holds .KEX files extracted by the end user from their own
+# legally obtained updater binary.
+recovery/

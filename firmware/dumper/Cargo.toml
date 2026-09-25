@@ -1,0 +1,51 @@
+[package]
+name         = "dumper"
+version      = "0.1.0"
+edition      = "2024"
+rust-version = "1.95"
+description  = "TH-D75 bare-metal NOR-flash dumper payload (ARM926EJ-S, OMAP-L138)."
+authors      = ["Swift Raccoon"]
+license      = "GPL-2.0-or-later"
+publish      = false
+
+# Application crate. The only `unsafe` opt-ins are three reasoned
+# `#[allow(unsafe_code, reason = "…")]` on the unsafe attributes the
+# Rust 2024 edition requires for any bare-metal entry: `#[unsafe(
+# no_mangle)]` on the reset handler, `#[unsafe(link_section = "...")]`
+# on the firmware header. There are zero `unsafe { ... }` blocks in
+# this crate — every register access goes through the safe API of
+# `dumper-omap`.
+
+[lints.rust]
+unsafe_code                   = "deny"
+missing_docs                  = "deny"
+missing_debug_implementations = "deny"
+elided_lifetimes_in_paths     = "deny"
+trivial_casts                 = "deny"
+unreachable_pub               = "deny"
+unused_qualifications         = "deny"
+
+[lints.clippy]
+all      = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+nursery  = { level = "deny", priority = -1 }
+cargo    = { level = "deny", priority = -1 }
+allow_attributes                = "deny"
+allow_attributes_without_reason = "deny"
+
+# Resolves a contradiction between two strict lints in a binary crate:
+#   * `unreachable_pub` (Rust group) wants `pub` items in non-exporting
+#     crates to be downgraded to `pub(crate)`.
+#   * `clippy::redundant_pub_crate` (nursery group) wants `pub(crate)`
+#     in a binary crate (which has no external API) downgraded again.
+# In an executable they conflict on every visibility annotation.
+# `unreachable_pub` is the more widely accepted rule, so we keep it
+# and silence the nursery contradiction with a single explicit allow.
+redundant_pub_crate = "allow"
+
+[dependencies]
+dumper-omap = { path = "../dumper-omap" }
+
+[[bin]]
+name = "dumper"
+path = "src/main.rs"

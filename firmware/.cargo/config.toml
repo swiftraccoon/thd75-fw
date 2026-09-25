@@ -1,0 +1,34 @@
+# Cargo config for the firmware/ workspace.
+#
+# Sets the default build target to the radio's ARM core and turns on
+# ``build-std=core`` so the Tier-3 ``armv5te-none-eabi`` target (which
+# has no pre-built ``core`` shipped with rustup) is buildable.
+#
+# The shared linker script lives one directory up (``firmware/linker.ld``)
+# so both the ``dumper`` payload and any future payloads consume the
+# same DDR layout.
+
+[build]
+target = "armv5te-none-eabi"
+
+[unstable]
+build-std = ["core"]
+# (Don't enable the `panic_immediate_abort` build-std feature — it was
+# promoted to a real panic strategy in 2026 and now lives under
+# `panic = "immediate-abort"`. We use `-C panic=abort` in rustflags,
+# which is the stable equivalent for our needs — the few extra bytes
+# of panic-prose machinery are inconsequential for a one-shot dumper.)
+
+[target.armv5te-none-eabi]
+rustflags = [
+    # Tell the linker to embed the build ID so stripped binaries remain
+    # traceable to their source build.
+    "-C", "link-arg=--build-id",
+    # The dumper has no allocator; abort on any panic so we never
+    # accidentally pull in libstd's panic-unwinding machinery.
+    "-C", "panic=abort",
+]
+
+# The linker-script path itself is emitted by each binary crate's
+# build.rs (it needs an absolute path, since the linker's CWD is not
+# the crate's manifest dir).

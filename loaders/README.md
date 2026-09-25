@@ -19,12 +19,11 @@ Then in IDA: `File > Script File...` → select `ida_thd75.py`. The script:
 
 1. Verifies the processor is `arm` (offers recovery instructions if not).
 2. Sets the segment to RWX, 32-bit (IDA refuses code creation otherwise).
-3. **Auto-rebases the segment to the flash address parsed from the
-   filename** (e.g., `FIRMWARE_0x00200000.bin` → segment starts at
-   `0x00200000`), so addresses in IDA match the README's section table
-   and the documented OMAP-L138 flash layout. Set
-   `REBASE_TO_FLASH_ADDRESS = False` at the top of the script to skip
-   this and keep the segment at file offset 0.
+3. **Maps the main image at runtime DDR `0xC0000000`**. Thus flat-image
+   offset `N` is address `0xC0000000 + N`, and the image's `0xC0xxxxxx`
+   pointers resolve to handler bodies in the same extracted blob. Other
+   sections map to CPU-visible NOR (`0x60000000 + filename offset`). Set
+   `REBASE_TO_ANALYSIS_ADDRESS = False` to keep file-offset zero.
 4. For `FIRMWARE`: marks the 7 active ARM exception vector slots as code
    (slot `0x14` is reserved on ARMv5+ and decoded as data), names them
    (`reset_vector`, `irq_vector`, etc.), labels the literal pool as 8
@@ -60,18 +59,19 @@ Then:
 3. Let auto-analysis finish.
 4. **Window > Script Manager** → run `ghidra_thd75.py`.
 
-The script auto-rebases the image to the flash address parsed from the
-filename (matching IDA's behavior), names the ARM vectors, and
-disassembles them. Set `REBASE_TO_FLASH_ADDRESS = False` at the top of
-the script to skip the rebase.
+The script applies the same analysis mapping as the IDA script: main
+firmware at runtime DDR `0xC0000000`, and standalone data sections at
+their CPU-visible NOR addresses. It then names and disassembles the ARM
+vectors. Set `REBASE_TO_ANALYSIS_ADDRESS = False` to skip the rebase.
 
 ## What these scripts deliberately don't do
 
-- Define a DDR segment at `0xC0000000` for unresolved handler addresses.
-  The handlers (`0xC0180B8C` etc.) live in DDR memory after the
-  bootloader copies the runtime image. That copy logic isn't in the
-  flash blob, so the handler bodies aren't reachable from this segment
-  alone — they live in a different blob at runtime.
+- Create a second alias of the main blob at its NOR source address
+  `0x60200000`. The default DDR mapping is deliberate: the flat bytes
+  themselves contain the handler bodies addressed as
+  `0xC0000000 + flat_offset`. The stock updater establishes the NOR source,
+  while the uncaptured D75 low bootloader's exact copy, validation, and
+  entry mechanics remain unresolved.
 - Name functions in the body of the firmware. Auto-analysis will find
   them via cross-references; manual reverse-engineering is still your
   job.
@@ -91,15 +91,20 @@ regions for reverse-engineering this firmware:
 | External Flash (NOR) | `0x60000000` | 32 MB | Where the updater writes — section addresses are FROM 0x60000000 |
 | External DDR | `0xC0000000` | 64 MB max | Where most code runs after boot |
 
-Section addresses in this project (e.g., `FIRMWARE` at `0x00200000`)
-are flash offsets *relative to the SoC's NOR flash base of `0x60000000`*.
-The full physical address is `0x60200000`. The updater stores `$SA=`
-metadata as the full physical address; `_extract_flash_address` in
-`cli.py` subtracts the flash base (`0x60000000`, exposed as
-`thd75_fw.sections.FLASH_BASE`) to derive the relative offset used in
-filenames. The DDR base (`0xC0000000`) is unrelated — it's where the
-runtime image lives after the bootloader copies code from flash.
+Section addresses in filenames (e.g., `FIRMWARE` at `0x00200000`) are
+offsets relative to NOR base `0x60000000`; the main image's stock source
+is therefore `0x60200000`. The updater's `$SA=` carries that CPU-visible
+NOR address. This source address is provenance, not the correct code
+analysis base.
 
-This is why the literal pool in `FIRMWARE`'s exception vectors
-references `0xC0xxxxxx` addresses — the handlers are copied to DDR at
-runtime, not stored in flash where the vectors themselves live.
+For the main flat image, runtime address and file offset have the direct
+relationship `runtime = 0xC0000000 + flat_offset`. For example, the D75
+service table at flat offset `0x0006F284` is runtime address `0xC006F284`,
+and its `9R` Thumb pointer `0xC006F827` resolves to handler bytes at flat
+offset `0x0006F826`. Loading the blob at a flash offset makes valid
+runtime pointers look external and prevents these xrefs from resolving.
+
+The official service manual states that the main MPU copies its program
+from flash to DDR. The byte mapping above is directly testable in the
+extracted image; the exact low-boot validation, copy length, and entry
+sequence are still unknown until the D75 bootloader is captured.

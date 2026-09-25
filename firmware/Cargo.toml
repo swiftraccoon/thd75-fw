@@ -1,0 +1,21 @@
+# Virtual Cargo workspace for the bare-metal firmware payloads that
+# `thd75-flash` flashes onto the TH-D75. These crates target the radio's
+# ARM926EJ-S core (OMAP-L138, ``armv5te-none-eabi``) and have nothing in
+# common with the host-targeting Python parent package — they live in
+# this subdirectory so the Python tooling can find their build artifacts
+# (``firmware/dumper/target/.../dumper.bin``) and ship them as payloads.
+#
+# Members:
+#   * dumper-omap  — OMAP-L138 SoC register definitions + safe MMIO
+#                    wrappers (the *only* crate where `unsafe` lives,
+#                    behind reasoned `#[allow]` blocks).
+#   * dumper       — `#![forbid(unsafe_code)]` dumper application that
+#                    streams the radio's 32 MiB NOR flash out the UART.
+#
+# Both crates are no_std, pinned to the nightly toolchain in
+# rust-toolchain.toml because the ``armv5te-none-eabi`` target is Tier-3
+# and requires ``-Z build-std=core``.
+
+[workspace]
+resolver = "2"
+members = ["dumper-omap", "dumper"]
