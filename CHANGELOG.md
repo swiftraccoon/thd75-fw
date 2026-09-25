@@ -8,6 +8,33 @@ under a `0.x` minor-version-as-breaking-change policy until `1.0.0`.
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-09-24
+
+### Changed
+
+- Shortened the project README to installation, a quickstart, the CLI overview,
+  and documentation links. Moved the full legal notice to
+  [its own page](docs/LEGAL.md).
+- Added a [patch catalog guide](src/thd75_fw/patches/README.md),
+  [flashing and recovery guide](docs/FLASHING.md),
+  [patch manifest reference](docs/PATCH_FORMAT.md), and
+  [capture-tool guide](https://github.com/swiftraccoon/thd75-fw/blob/main/firmware/CAPTURE.md).
+  Each workflow now has one home;
+  the usage, firmware, automation, and loader guides link to those references.
+- Included the new package documentation in source distributions and updated
+  the package description to cover patching, themes, and flashing. Firmware
+  tooling continues to require a repository checkout.
+
+### Fixed
+
+- Completed the documented patch-build chains, updated recognized KEX metadata
+  fields, and corrected stale capture-status and CLI-count wording.
+- Distinguished Azimuth artifact status from predecessor qualification and
+  identified external live-qualification tooling as a separate prerequisite.
+
+This release changes documentation and package metadata; firmware patches and
+runtime behavior are unchanged.
+
 ## [0.3.0] - 2026-09-24
 
 ### Added
@@ -320,7 +347,8 @@ under a `0.x` minor-version-as-breaking-change policy until `1.0.0`.
 - `docs/FORMAT.md`: consolidated reference for cipher algorithms, section
   layout, OMAP-L138 memory map, and voice/image database structures.
 
-[Unreleased]: https://github.com/swiftraccoon/thd75-fw/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/swiftraccoon/thd75-fw/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/swiftraccoon/thd75-fw/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/swiftraccoon/thd75-fw/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/swiftraccoon/thd75-fw/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/swiftraccoon/thd75-fw/releases/tag/v0.1.0

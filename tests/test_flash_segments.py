@@ -750,16 +750,16 @@ class TestQuotedHexBytesParsing:
 class TestRecoveryDocConsistency:
     """The recovery procedure's cited addresses must match the code.
 
-    The stock recovery procedure in docs/USAGE.md cites specific
+    The stock recovery procedure in docs/FLASHING.md cites specific
     addresses; they must match the constants the code actually uses.
     Catches doc-rot when the region layout is changed in segments.py but
     not the recovery procedure.
     """
 
     def _recovery_doc(self) -> str:
-        # Project root → docs/USAGE.md
-        doc = Path(__file__).resolve().parent.parent / "docs" / "USAGE.md"
-        assert doc.exists(), f"usage guide missing: {doc}"
+        # Project root → docs/FLASHING.md
+        doc = Path(__file__).resolve().parent.parent / "docs" / "FLASHING.md"
+        assert doc.exists(), f"flashing guide missing: {doc}"
         return doc.read_text(encoding="utf-8")
 
     def test_doc_cites_main_firmware_region_start(self) -> None:
@@ -769,7 +769,7 @@ class TestRecoveryDocConsistency:
         # operator one number while the code accepts another.
         expected = f"0x{MAIN_FIRMWARE_REGION_START:08X}".lower()
         assert expected in doc.lower(), (
-            f"USAGE.md does not mention {expected} — has the "
+            f"FLASHING.md does not mention {expected} — has the "
             f"region layout changed without updating the runbook?"
         )
 

@@ -1,5 +1,8 @@
 # IDA Pro and Ghidra setup scripts
 
+[Project](../README.md) · [Extraction usage](../docs/USAGE.md#extract-firmware-from-updater) ·
+[Firmware format](../docs/FORMAT.md)
+
 Drop-in scripts that configure your reverse-engineering tool of choice
 for binaries produced by `thd75-extract`. They eliminate the manual
 processor / segment / vector setup that's otherwise required for raw
@@ -15,7 +18,8 @@ Open the binary with the ARM processor selected up-front:
 ida -A -pARM FIRMWARE_0x00200000.bin
 ```
 
-Then in IDA: `File > Script File...` → select `ida_thd75.py`. The script:
+Then in IDA: `File > Script File...` → select
+[`ida_thd75.py`](ida_thd75.py). The script:
 
 1. Verifies the processor is `arm` (offers recovery instructions if not).
 2. Sets the segment to RWX, 32-bit (IDA refuses code creation otherwise).
@@ -45,8 +49,9 @@ existing IDB is x86-64, the script will print recovery steps:
 
 ### Recommended workflow
 
-Place this file in your `~/ghidra_scripts/` directory (or any location
-configured under **Window > Script Manager > Manage Script Directories**).
+Place [`ghidra_thd75.py`](ghidra_thd75.py) in your `~/ghidra_scripts/` directory
+(or any location configured under
+**Window > Script Manager > Manage Script Directories**).
 
 Then:
 
@@ -70,8 +75,8 @@ vectors. Set `REBASE_TO_ANALYSIS_ADDRESS = False` to skip the rebase.
   `0x60200000`. The default DDR mapping is deliberate: the flat bytes
   themselves contain the handler bodies addressed as
   `0xC0000000 + flat_offset`. The stock updater establishes the NOR source,
-  while the uncaptured D75 low bootloader's exact copy, validation, and
-  entry mechanics remain unresolved.
+  while the D75 low bootloader's exact copy, validation, and entry mechanics
+  remain unresolved despite the separate low-NOR capture.
 - Name functions in the body of the firmware. Auto-analysis will find
   them via cross-references; manual reverse-engineering is still your
   job.
@@ -79,17 +84,11 @@ vectors. Set `REBASE_TO_ANALYSIS_ADDRESS = False` to skip the rebase.
   navigator, etc.). That's the analysis work `thd75-fw` deliberately
   doesn't do for you.
 
-## Memory map reference
+## Analysis address mapping
 
-The TH-D75's main SoC is the TI OMAP-L138 (ARM926EJ-S + C674x DSP). Key
-regions for reverse-engineering this firmware:
-
-| Region | Address | Size | Purpose |
-|--------|---------|------|---------|
-| ARM Internal RAM | `0x80000000` | 128 KB | Boot, fast-access |
-| DSP Internal RAM | `0x11800000` | varies | DSP-side code/data |
-| External Flash (NOR) | `0x60000000` | 32 MB | Where the updater writes — section addresses are FROM 0x60000000 |
-| External DDR | `0xC0000000` | 64 MB max | Where most code runs after boot |
+See the [OMAP-L138 memory map](../docs/FORMAT.md#omap-l138-memory-map) for the
+general hardware regions. These scripts choose the address space that makes
+the extracted image's pointers resolve:
 
 Section addresses in filenames (e.g., `FIRMWARE` at `0x00200000`) are
 offsets relative to NOR base `0x60000000`; the main image's stock source
@@ -104,7 +103,8 @@ and its `9R` Thumb pointer `0xC006F827` resolves to handler bytes at flat
 offset `0x0006F826`. Loading the blob at a flash offset makes valid
 runtime pointers look external and prevents these xrefs from resolving.
 
-The official service manual states that the main MPU copies its program
-from flash to DDR. The byte mapping above is directly testable in the
-extracted image; the exact low-boot validation, copy length, and entry
-sequence are still unknown until the D75 bootloader is captured.
+The official service manual states that the main MPU copies its program from
+flash to DDR. The byte mapping above is directly testable in the extracted
+image. The [low-NOR capture](https://github.com/swiftraccoon/thd75-fw/blob/main/firmware/CAPTURE.md#capture-evidence) establishes
+Boot Program and FLDM slot boundaries; exact validation, copy length, and entry
+semantics remain unresolved.

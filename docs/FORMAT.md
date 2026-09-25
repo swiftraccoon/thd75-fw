@@ -1,9 +1,9 @@
 # TH-D75 firmware updater formats
 
-This document consolidates the format and protocol details that
-`thd75-fw` implements. Most of this is also present in module
-docstrings; this file is a single reference for the cipher
-algorithms, container layout, and section structure.
+Reference for the cipher algorithms, container layout, addresses, and section
+structures implemented by `thd75-fw`. For commands, see [usage](USAGE.md);
+for TOML manifests, see [patch format](PATCH_FORMAT.md); for hardware
+procedures, see [flashing and recovery](FLASHING.md).
 
 ## Table of contents
 
@@ -19,7 +19,9 @@ algorithms, container layout, and section structure.
 10. [Voice prompt database (DATA_0160)](#voice-prompt-database-data_0160)
 11. [Image database (IMAGE_DATA)](#image-database-image_data)
 12. [Display palettes and the colour scheme](#display-palettes-and-the-colour-scheme)
-13. [References and prior work](#references-and-prior-work)
+13. [Font data (FONT_DATA)](#font-data-font_data--not-yet-documented)
+14. [DSP firmware (DATA_00E0)](#dsp-firmware-data_00e0--out-of-scope)
+15. [References and prior work](#references-and-prior-work)
 
 ---
 
@@ -71,7 +73,7 @@ step = 39   # advance per byte
 
 | First char of line | Type | Decrypted content |
 |--------------------|------|-------------------|
-| `$` | Metadata | ASCII text (e.g., `$SA=0x60200000`) |
+| `$` | Metadata | Raw metadata bytes, including ASCII fields such as `$SA=0x60200000` and opaque header/comment bytes |
 | Anything else | Data | Raw bytes (interpreted as packed Intel HEX) |
 
 ### Encryption (the inverse)
@@ -189,27 +191,55 @@ error. The stock and audited 9R-patched artifacts retain those vendor bytes.
 
 ## Block / section metadata format
 
-Decrypted resource lines come in two flavors. Metadata lines start
-with `$`; data lines do not. Multiple metadata lines may precede each
-block of data.
+The encrypted resource's `$` line marker identifies metadata before
+decryption. Decrypted metadata can contain global `#` fields, section `$`
+fields, and `;` comments. External KEX preserves these bytes directly and
+uses `:` lines for Intel HEX records. The global header travels with the
+first block.
 
 ### Recognized metadata fields
 
-| Field | Format | Meaning |
-|-------|--------|---------|
-| `$SA=` | `$SA=0xHHHHHHHH` (or decimal) | Start address of the section in physical memory. The flash-relative offset is computed by subtracting the OMAP-L138's NOR flash base (`0x60000000`, exposed as `thd75_fw.sections.FLASH_BASE`). |
+Extraction uses `$SA` to identify the section and name its output file. The
+KEX parser, patch engine, and flash planner also interpret the following
+section fields:
 
-`thd75-fw` accepts both `0x`-prefixed hex and decimal values (via
-`int(val, 16) if val.startswith("0x") else int(val)`). Unknown
-metadata fields are preserved as part of the block but otherwise
-ignored.
+| Fields | Meaning |
+| --- | --- |
+| `$ST`, `$ED` | Structural section tags. External KEX requires exactly one of each, plus one `$SA`, per block. |
+| `$SA` | Section's physical start address. Subtract NOR base `0x60000000` (`thd75_fw.sections.FLASH_BASE`) to obtain the flash-relative filename offset. |
+| `$DL`, `$EL` | Data length and erase length. |
+| `$TT` | Target compatibility mask, including the vendor's quoted hexadecimal form. |
+| `$ET` | Erase wait declared in the loader descriptor, in seconds. |
+| `$CB`, `$CA` | Expected before/after 16-bit checksums. Patching recomputes `$CA` over the declared checksum region. |
+| `$CS`, `$CL`, `$CT` | Checksum start offset, length, and wait in seconds. A zero `$CL` skips the host's segment-verification command. |
+| `$VS`, `$VL`, `$VA` | Version offset, byte length, and expected version bytes. The quoted `$VA` contents are sent without their surrounding quotes. |
+| `$DU`, `$DC` | Host-side data-unit and scheduling hints; not fields in the loader's SETUP descriptor. |
+| `$EM` | Vendor host's erase-watchdog budget; distinct from the descriptor's `$ET` and not sent in SETUP. |
+
+Vendor address/checksum fields use hexadecimal notation such as
+`$SA=0x60200000`; timing and length fields may use decimal notation. The
+flash-descriptor parser accepts `0x`-prefixed hexadecimal and decimal integers,
+and the vendor's quoted hexadecimal target mask. The patch engine's address
+and checksum lookups interpret those fields as hexadecimal. Preserve the
+vendor field representation when constructing a container.
+
+Global `#` metadata also matters to native flashing. The planner validates the
+V1.03 transfer/completion profile (`#TC`, `#TU`, `#FC`), force policy (`#AF`),
+segment count (`#DN`), firmware label (`#FV`), and required baud profile (`#BR`).
+The [flashing guide](FLASHING.md) describes the supported transport profile;
+retaining a metadata hint does not mean the native flasher adopts it.
+
+Other metadata is preserved for round-tripping. External KEX still rejects
+malformed or duplicate section tags; it does not treat unknown metadata as
+permission to bypass structural validation.
 
 ### Block boundary
 
-A new block begins each time a `$`-prefixed line follows accumulated
-data. Each block typically corresponds to one firmware section; the
-order in the resource matches the order of writes during a firmware
-update.
+In the encrypted resource, a metadata-marked line after accumulated data
+starts a new block. In external KEX, metadata after an EOF record starts the
+next block; metadata before EOF is rejected. Each block typically represents
+one section. Resource order is retained, including the final overlays after
+the main image.
 
 ---
 
@@ -303,15 +333,19 @@ Implications for reverse-engineering:
   `runtime = 0xC0000000 + flat_offset`. A pointer such as `0xC006F827`
   therefore resolves to Thumb handler bytes at flat offset `0x6F826`.
 - The service manual states that the main MPU copies its program from
-  flash to DDR. The uncaptured D75 low bootloader's exact validation,
-  copy length, and entry mechanics remain unconfirmed.
-- The low boot/FLDM region below NOR offset `0x00200000` is absent from
-  the updater's main image; do not describe bytes in `FIRMWARE` as the
-  D75 bootloader or as a separate runtime blob.
+  flash to DDR. The low-NOR region has since been captured in two matching
+  passes through the qualified normal-GM NOR route. Its Boot Program slot is
+  NOR offset `0x000000..0x01FFFF`; its FLDM loader slot is
+  `0x020000..0x05FFFF`. Exact main-image validation, copy length, and entry
+  mechanics remain unconfirmed here.
+- That captured region lies below NOR offset `0x00200000` and is absent from
+  the updater's main image. Bytes in the extracted `FIRMWARE` section are the
+  main runtime, not the separate low-NOR bootloader. Capture tools and their
+  hardware status are documented in the repository's
+  [firmware workspace](https://github.com/swiftraccoon/thd75-fw/blob/main/firmware/README.md).
 
-Tools like IDA Pro and Ghidra need to be told this — see
-`loaders/README.md` for setup scripts that pre-configure the
-processor, segment, and vector annotations.
+For IDA Pro and Ghidra setup, see the [loader guide](../loaders/README.md),
+which configures the processor, runtime segment, and vector annotations.
 
 ---
 

@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "thd75-fw"
 dynamic = ["version"]
-description = "Kenwood TH-D75 firmware extraction and cipher tools"
+description = "Kenwood TH-D75 firmware extraction, patching, themes, and flashing tools"
 requires-python = ">=3.10"
 license = "GPL-3.0-only"
 authors = [{ name = "Swift Raccoon", email = "47705353+swiftraccoon@users.noreply.github.com" }]
@@ -39,6 +39,7 @@ dependencies = [
 Homepage = "https://github.com/swiftraccoon/thd75-fw"
 Repository = "https://github.com/swiftraccoon/thd75-fw"
 Issues = "https://github.com/swiftraccoon/thd75-fw/issues"
+Documentation = "https://github.com/swiftraccoon/thd75-fw/blob/main/docs/USAGE.md"
 Changelog = "https://github.com/swiftraccoon/thd75-fw/blob/main/CHANGELOG.md"
 
 [project.scripts]
@@ -71,6 +72,9 @@ include = [
     "/tests",
     "/docs/FORMAT.md",
     "/docs/USAGE.md",
+    "/docs/FLASHING.md",
+    "/docs/PATCH_FORMAT.md",
+    "/docs/LEGAL.md",
     "/loaders",
     "/CHANGELOG.md",
     "/LICENSE",

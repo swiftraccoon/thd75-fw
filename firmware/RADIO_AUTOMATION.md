@@ -1,28 +1,57 @@
 # Closed-loop Azimuth automation
 
-The Azimuth overlay turns the exact,
-hash-pinned V1.03 normal-mode `GM` reader into a closed-loop test interface. It
-does not infer
-that a key worked from a successful CAT reply. A host sends a bounded stock
+[Firmware tools](README.md) · [Patch catalog](../src/thd75_fw/patches/README.md) ·
+[Flashing and recovery](../docs/FLASHING.md)
+
+This is the technical reference for the Azimuth ABI-3 overlay: its CAT protocol,
+screen publication, reproducible build, and live acceptance requirements. For
+patch selection and stacking, start with the
+[catalog](../src/thd75_fw/patches/README.md).
+
+The overlay turns the exact, hash-pinned V1.03 normal-mode `GM` reader into a
+closed-loop test interface. A host sends a bounded stock
 front-panel event, asks the radio to freeze a coherent LCD frame, reads the
 published pixels, verifies their metadata and CRC-32, and only then evaluates
 what the radio actually displayed.
 
-The current overlay is built from the exact pinned raw FIRMWARE image with
-SHA-256
-`239128bca8f608398dc23865c336bd48a00484ea598202a000fd9f5647aa92a6`.
-It preserves the source image's `GW 2` USB-storage recovery and ordinary thirteen-byte
-`GM` reads. The build refuses any other source image, any occupied code/data
-cave, unexpected source instruction, linked section, retained relocation, or
-non-reproducible object/ELF.
+It builds on the exact V18 USB-recovery FIRMWARE identified in
+[artifact pins](#artifact-pins), preserving `GW 2` storage recovery and ordinary
+thirteen-byte `GM` reads. The build rejects a different source image, occupied
+code/data cave, unexpected source instruction or linked section, retained
+relocation, or non-reproducible object/ELF.
+
+- [Status](#status)
+- [CAT protocol](#cat-protocol)
+- [Screen publication](#atomic-screen-publication)
+- [Metadata ABI](#metadata-abi)
+- [Front-panel input](#front-panel-input)
+- [Reproducible build](#reproducible-build)
+- [Artifact pins](#artifact-pins)
+- [Live acceptance specification](#live-acceptance-specification)
+- [Historical evidence](#historical-evidence)
+
+## Status
+
+The recorded evidence applies to specific artifacts:
+
+| Artifact | Recorded verification |
+| --- | --- |
+| Predecessor package with the same 1,300-byte ABI-3 runtime and hooks | Live TH-D75A/V1.03 qualification and full menu audit on 2026-07-31, before the Azimuth payload-identity rename. |
+| Bare Azimuth with `V1.03.AZM` identity | Deterministic dual build, emulation, patch/repack, extraction, and flasher admission. No separate physical flash/readback of this exact bare artifact is recorded here. |
+| Azimuth plus `orange-on-black` | Flashed and verified FIRMWARE, IMAGE_DATA, and both overlays on 2026-09-24; the Orange display option was observed. This records the themed artifact's flash and display result, not completion of every live acceptance step below. |
+
+The host qualifier, menu runner, and private evidence bundles used for the
+historical hardware work are not distributed in this repository. The
+[live sequence](#live-acceptance-specification) specifies the checks a host
+implementation must perform; it is not a runnable qualifier command supplied
+by `thd75-fw`. ABI-1 and ABI-2 overlays are superseded and no longer shipped or
+buildable.
 
 ## CAT protocol
 
-Azimuth is the shipped automation overlay. It provides framebuffer-guarded
-single-key and three-digit numeric-route operations, and it resolves the route
-with one authenticated starting-context guard followed by all three synchronous
-digits. Earlier ABI-1 and ABI-2 overlays are superseded by Azimuth and are no
-longer shipped or buildable.
+Azimuth provides framebuffer-guarded single-key and three-digit numeric-route
+operations. It resolves the route with one verified starting-context guard
+followed by all three synchronous digits.
 
 Every automation request is exactly eleven bytes including its final carriage
 return. A successful command echoes the first ten request bytes, appends
@@ -204,6 +233,20 @@ validation.
 
 ## Reproducible build
 
+Use a repository checkout, Python 3.10 or newer, an ARM-capable `clang`, and
+LLVM's `ld.lld`. `llvm-objdump` is optional for disassembly. The builder accepts
+`--clang`, `--linker`, and `--objdump` paths when these tools are not discoverable.
+The `--emulate` check also requires Unicorn in the same Python environment:
+
+```bash
+python3 -m pip install -e . unicorn
+python3 scripts/build_radio_automation.py --help
+```
+
+The repository's `uv sync` development environment also includes Unicorn.
+The builder and assembly sources under `scripts/` are checkout tools, not
+installed console commands. Obtain the official V1.03 updater separately.
+
 Rebuild the complete updater chain from the repository root. Every stage
 refuses a source whose complete pinned hash is not the expected predecessor:
 
@@ -229,15 +272,9 @@ shasum -a 256 TH-D75_V103_azimuth.exe \
   TH-D75_V103_azimuth.KEX
 ```
 
-The FIRMWARE-only extraction is deliberate. Stock V1.03 carries four
-checksum-inconsistent Intel HEX records in its two tiny `$CL=0` final overlay
-blocks (`CHECKBYTES` and `FINAL_ZZZ`), while its FIRMWARE block is internally
-valid. The `--section FIRMWARE` path validates every block's `$SA` metadata,
-requires exactly one FIRMWARE block, parses that block alone, and skips rather
-than accepts the unrelated overlay record streams. It still refuses any
-checksum error in the selected block. Unfiltered extraction separately admits
-only the exact complete stock overlay streams keyed by block index and physical
-address; any byte, address, or ordering change remains fatal.
+The FIRMWARE-only extraction validates the selected main block, which is the
+builder's input. See the [Intel HEX format notes](../docs/FORMAT.md#notes) for
+the stock updater's unrelated final-overlay checksum exceptions.
 
 The output contains the twice-built object and ELF files, flat
 `radio_automation.bin`, `audit.json`, command log, optional disassembly, and a
@@ -245,12 +282,15 @@ fail-closed patch-manifest draft. `--emulate` requires Unicorn and executes the
 linked Thumb machine code against command, ABI, CRC, RLE boundary/canary,
 unstable-capture, register-preservation, stack-alignment, and virtual-mapping
 vectors. KEX, encrypted-resource, and updater hashes are added only after the
-normal deterministic patch/repack loop produces those artifacts.
+normal deterministic patch/repack loop produces those artifacts. The final
+patch/repack commands above apply the shipped catalog manifest; the builder's
+draft remains an audit output until its complete artifact pins are populated.
 
-The current builder emits the Azimuth ABI-3 single-guard route runtime and exact
-`V1.03.AZM` payload identity. The superseded ABI-1 and ABI-2 overlays are no
-longer shipped or buildable, and their KEX hashes are no longer admitted to real
-writes. The complete Azimuth artifact chain is independently hash-pinned:
+## Artifact pins
+
+The builder emits the Azimuth ABI-3 single-guard route runtime and exact
+`V1.03.AZM` payload identity. The complete artifact chain is independently
+hash-pinned:
 
 | Current Azimuth single-guard route build | SHA-256 or value |
 |---|---|
@@ -265,24 +305,18 @@ writes. The complete Azimuth artifact chain is independently hash-pinned:
 | Main FIRMWARE descriptor checksum | `0x445C` |
 | Changed FIRMWARE bytes | `1267` |
 
-The built-in manifest pins the complete Azimuth source/result chain. The native
-flasher admits only its exact KEX hash, retains the dedicated
-`--acknowledge-gm-nor-read-write` gate, and selects the normal-GM fast plan.
-Inspect that exact plan offline before entering FLDM, then flash only the
-pinned Azimuth KEX:
+The built-in manifest pins the complete source/result chain. For the separate
+themed artifact and stack order, see the
+[patch catalog](../src/thd75_fw/patches/README.md). The
+[flashing guide](../docs/FLASHING.md) owns the exact-artifact admission policy,
+offline plan inspection, write acknowledgement, and recovery procedure.
 
-```bash
-thd75-flash --dry-run TH-D75_V103_azimuth.KEX
-thd75-flash TH-D75_V103_azimuth.KEX \
-  --port /dev/cu.usbmodemXXXX --cleartext --reference-transport \
-  --acknowledge-gm-nor-read-write --yes
-```
+## Live acceptance specification
 
-The inherited fast plan retains source indices `[0,1,2,4,5,6]` and omits only
-the fully pinned, stock-identical `DATA_0160` segment. The acknowledgment
-authorizes this exact normal-GM-family write; it does not prove that Azimuth ran.
-
-Azimuth must pass this live sequence before any audit input:
+The following is the required post-flash acceptance sequence for a host
+qualifier. The qualifier and menu runner are external to this repository; the
+builder's offline emulator does not perform these live checks. The complete
+sequence must pass before ordinary menu-audit input:
 
 1. The ABI-3 byte-exact qualifier attests CAT `FV 1.03.AZM`, both patched
    hooks, all 1,300 runtime bytes, the exact ABI reply, aperture bounds, and
@@ -305,12 +339,13 @@ word “atomic” in the 991 canary means one non-retried CAT handler transactio
 with no host gap between digits; the documented framebuffer-writer TOCTOU
 boundary remains.
 
+## Historical evidence
+
+### Predecessor ABI-3 menu audit
+
 The unchanged 1,300-byte ABI-3 runtime and hooks passed live TH-D75A/V1.03
 qualification and the full menu audit in the predecessor package on 2026-07-31.
-The exact Azimuth package has passed deterministic dual-build, emulation,
-patch/repack, and extract verification, but its new payload identity has not yet
-been flashed and read back from a physical radio. The predecessor runner
-reported
+The predecessor runner reported
 `FULL_217_ROWS_162_VALUES_14_SAFE_INSPECTIONS_PASS`: all 217 rows were attempted,
 located, and restored; all 162 value/information pages and 14 safe inspections
 were validated; all 41 editor/action pages remained unentered; and no result
@@ -322,6 +357,8 @@ and the raw artifacts were byte-identical. The final home oracle proved
 146.940 MHz on Band A, the quiet 446.000 MHz baseline on Band B, and operation
 band B. The private JSONL/BMP/snapshot evidence bundle is intentionally not
 distributed with this repository.
+
+### Superseded overlays
 
 The superseded ABI-2 overlay reached deterministic dual-build checks, Thumb
 emulation, manifest/repack pinning, and flasher dry-run, but was never
@@ -336,6 +373,8 @@ pixels and produced exact `Menu`, the restore returned exact `146.940`, all four
 direction IDs were resolved with selected-label assertions, and Enter opened an
 exact `SD Card` screen whose options were read automatically. That overlay is
 superseded by Azimuth and is no longer shipped.
+
+### Transfer and OCR measurements
 
 The transport uses the existing hexadecimal `GM` reader. At the measured
 34 ms per 256-byte Bluetooth read, one full raw frame takes about 11.6 seconds.

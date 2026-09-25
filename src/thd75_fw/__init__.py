@@ -99,7 +99,7 @@ from .voice import (
     classify_language,
 )
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 __all__ = [
     "DEFAULT_KEY",
