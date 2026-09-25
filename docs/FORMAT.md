@@ -11,13 +11,15 @@ algorithms, container layout, and section structure.
 2. [File-storage cipher (firmware-resident)](#file-storage-cipher-firmware-resident)
 3. [Serial transfer cipher (USB protocol)](#serial-transfer-cipher-usb-protocol)
 4. [Resource extraction from the .NET updater](#resource-extraction-from-the-net-updater)
-5. [Block / section metadata format](#block--section-metadata-format)
-6. [Intel HEX records (packed binary form)](#intel-hex-records-packed-binary-form)
-7. [Section catalog](#section-catalog)
-8. [OMAP-L138 memory map](#omap-l138-memory-map)
-9. [Voice prompt database (DATA_0160)](#voice-prompt-database-data_0160)
-10. [Image database (IMAGE_DATA)](#image-database-image_data)
-11. [References and prior work](#references-and-prior-work)
+5. [Encrypted resource versus external KEX](#encrypted-resource-versus-external-kex)
+6. [Block / section metadata format](#block--section-metadata-format)
+7. [Intel HEX records (packed binary form)](#intel-hex-records-packed-binary-form)
+8. [Section catalog](#section-catalog)
+9. [OMAP-L138 memory map](#omap-l138-memory-map)
+10. [Voice prompt database (DATA_0160)](#voice-prompt-database-data_0160)
+11. [Image database (IMAGE_DATA)](#image-database-image_data)
+12. [Display palettes and the colour scheme](#display-palettes-and-the-colour-scheme)
+13. [References and prior work](#references-and-prior-work)
 
 ---
 
@@ -142,24 +144,46 @@ managed string resource named:
 THD75_Updater_E.Resources.TH-D75_Firm_E.txt
 ```
 
-`thd75-fw` extracts this resource via two paths:
-
-1. **Fast path:** if a sibling `THD75_Updater_E.Resources.TH-D75_Firm_E.txt`
-   file exists next to the `.exe` (e.g., produced by
-   `ilspycmd <file.exe> -p -o <dir>` and copied alongside), `thd75-fw`
-   reads it directly.
-
-2. **Byte-scan fallback:** scans the PE binary linearly for the first
-   `$`-prefixed hex region of size ≥ 1 MB. The resource boundary is
-   detected by trailing binary content (`\x00\x00` within the first
-   10 bytes of a candidate "line").
-
-Both paths produce **byte-identical** output, verified across all 7
-sections via SHA-256.
+`thd75-fw` scans the requested PE binary itself for the first `$`-prefixed hex
+region of size at least 1 MiB. A sibling ILSpy text export is never selected
+implicitly: silently preferring one could substitute a stale resource from a
+different updater. Callers may supply an extracted resource only through an
+explicit resource-file option.
 
 The byte scanner is O(n) on file size; the worst case (43 MB updater)
 runs in roughly 100 ms on modern hardware. Cipher decryption + Intel
 HEX parsing dominates the end-to-end runtime, not the scan.
+
+---
+
+## Encrypted resource versus external KEX
+
+These are different containers and must not be selected by filename alone:
+
+| Container | On-disk grammar | Parser |
+| --- | --- | --- |
+| Embedded updater resource | marker plus encrypted ASCII hex on every line | `parse_encrypted_resource(str)` (`parse_resource` remains a compatibility alias) |
+| External `.KEX` | opaque metadata bytes plus literal uppercase `:LLAAAATT...CC` records | `parse_kex_bytes(bytes)` |
+
+The official V1.03 reader proves the distinction: `j.cs` opens a user-selected
+file with its encrypted-resource flag false and returns each input line
+unchanged; it enables decryption only for the manifest resource embedded in the
+updater. A file beginning `$930D67E4...` is encrypted resource text even if it
+has been named `.KEX`.
+
+External KEX parsing is byte-oriented because the canonical stock artifact has
+opaque comment/header bytes that are not valid UTF-8 (including `0xBF`). The
+canonical stock plaintext is 43,137,429 bytes with SHA-256
+`e62da10cfb0bb42e1b68f077858d0c64cf26e52818f05ba9d39efa6f9107259e`.
+The parser requires exact CRLF, a final CRLF, uppercase text records, complete
+record lengths, structural block tags, EOF placement, and no overlap. It
+explicitly rejects encrypted-resource grammar rather than guessing and
+decrypting it.
+
+The official V1.03 CHECKBYTES and FINAL_ZZZ post-write blocks contain four
+nonstandard Intel-record checksum bytes. The parser admits only the two exact
+complete official overlay record streams; every other checksum mismatch is an
+error. The stock and audited 9R-patched artifacts retain those vendor bytes.
 
 ---
 
@@ -201,7 +225,7 @@ Byte 0     : LL (data byte count)
 Bytes 1-2  : AAAA (16-bit address within the current segment, big-endian)
 Byte 3     : TT (record type)
 Bytes 4..  : DD... (LL data bytes)
-Byte LL+4  : CC (checksum byte; not validated by thd75-fw)
+Byte LL+4  : CC (checksum byte)
 ```
 
 ### Record types used
@@ -214,9 +238,10 @@ Byte LL+4  : CC (checksum byte; not validated by thd75-fw)
 
 ### Notes
 
-- `thd75-fw` does NOT validate Intel HEX checksums. Truncated records,
-  unknown record types, and extended-address records with `byte_count
-  < 2` are surfaced via `ParseResult.errors` for callers to react to.
+- `thd75-fw` validates Intel HEX checksums. Truncated records, bad checksums,
+  unknown record types, and extended-address records with `byte_count < 2` are
+  surfaced via `ParseResult.errors`; external-KEX preflight treats them as
+  fatal except for the two exact official overlay streams described above.
 - Padding (all-zero 4-byte regions between records) is accepted and
   skipped silently.
 
@@ -226,9 +251,10 @@ Byte LL+4  : CC (checksum byte; not validated by thd75-fw)
 
 V1.03 produces 7 sections. The "Flash address" column below shows
 each section's **offset from the NOR flash base** (`0x60000000` in
-the OMAP-L138 memory map). The full physical address at which the
-section lives at runtime is `0x60000000 + offset` — e.g. `FIRMWARE`
-sits at physical `0x60200000`, derived from offset `0x00200000`.
+the OMAP-L138 memory map). The CPU-visible NOR source address is
+`0x60000000 + offset` — e.g. `FIRMWARE` is stored at `0x60200000`,
+derived from offset `0x00200000`. That is not the main image's code-
+analysis base: its flat runtime mapping starts at DDR `0xC0000000`.
 The filenames `thd75-fw` writes use these offsets directly, matching
 the `$SA=` value in the encrypted resource minus the flash base.
 Patch authors should write `offset = <flat-image-offset>` against
@@ -238,17 +264,19 @@ maps to flat-image offset `0`).
 
 | Section | Flash address | Size (V1.03) | Purpose |
 |---------|---------------|--------------|---------|
-| `FIRMWARE` | `0x00200000` | 2.5 MB | ARM926EJ-S executable + initial boot code |
+| `FIRMWARE` | `0x00200000` | 2.5 MB | ARM926EJ-S main runtime image and embedded data |
 | `IMAGE_DATA` | `0x00600000` | 384 KB | 862 PNG images (UI, APRS symbols, splash) |
 | `DATA_00E0` | `0x00E00000` | 1.0 MB | TI C674x AMBE2+ DSP firmware (proprietary, not parsed) |
 | `FONT_DATA` | `0x01500000` | 768 KB | Shift-JIS bitmap fonts (16x16 and 24x24, 1-bit mono) |
 | `DATA_0160` | `0x01600000` | 10.0 MB | Voice prompt database (749 prompts, 8-bit signed PCM at 8 kHz) |
-| `CHECKBYTES` | `0x00200062` | 2 bytes | Bootloader integrity checksum (`0xB01D` in V1.03) |
-| `FINAL_ZZZ` | `0x00200040` | 32 bytes | Build marker, written last to confirm update completion |
+| `CHECKBYTES` | `0x00200062` | 2 bytes | Stock V1.03 overlay bytes `B0 1D`; D75 early-boot meaning unconfirmed |
+| `FINAL_ZZZ` | `0x00200040` | 32 bytes | Stock 32-byte overlay written last; D75 early-boot meaning unconfirmed |
 
 `CHECKBYTES` and `FINAL_ZZZ` overlap with `FIRMWARE` (both fall within
-`0x00200040..0x0020007F`) — they're patched into the FIRMWARE region's
-exception-vector padding area after the main FIRMWARE write completes.
+`0x00200040..0x0020007F`) and are patched into that range after the main
+FIRMWARE write. The official resource proves the byte values, destinations,
+and write order. Assigning either overlay a boot-integrity or validity-gate
+role would import D74 behavior that has not been confirmed on D75.
 
 ---
 
@@ -266,15 +294,20 @@ The TH-D75's main SoC is the [TI OMAP-L138](https://www.ti.com/product/OMAP-L138
 
 Implications for reverse-engineering:
 
-- The `FIRMWARE` blob starts with ARM exception vectors at flash
-  `0x00200000` (file offset 0).
+- The `FIRMWARE` blob's stock NOR source is `0x60200000`; its file offset
+  zero contains ARM exception vectors.
 - Each vector is `LDR PC, [PC, #imm]` referencing a literal pool entry
   immediately after — the literal pool addresses are all in DDR at
   `0xC0xxxxxx`.
-- The bootloader (running from flash) copies the bulk of the firmware
-  into DDR at `0xC0000000+`, then jumps to it.
-- Flash-resident code is the boot path + the vectors; the runtime
-  image lives in DDR after boot.
+- Main-image bytes follow the direct analysis mapping
+  `runtime = 0xC0000000 + flat_offset`. A pointer such as `0xC006F827`
+  therefore resolves to Thumb handler bytes at flat offset `0x6F826`.
+- The service manual states that the main MPU copies its program from
+  flash to DDR. The uncaptured D75 low bootloader's exact validation,
+  copy length, and entry mechanics remain unconfirmed.
+- The low boot/FLDM region below NOR offset `0x00200000` is absent from
+  the updater's main image; do not describe bytes in `FIRMWARE` as the
+  D75 bootloader or as a separate runtime blob.
 
 Tools like IDA Pro and Ghidra need to be told this — see
 `loaders/README.md` for setup scripts that pre-configure the
@@ -353,6 +386,24 @@ The chunk-walk approach is exact, not heuristic — earlier versions of
 `thd75-fw` used `data.find(b"IEND")` which can produce false positives
 (e.g., when a tEXt chunk contains "IEND" as data) or truncate when a
 PNG's CRC happens to end in `0xFF`.
+
+---
+
+## Display palettes and the colour scheme
+
+IMAGE_DATA header word `0x2C` points at 18 little-endian u32 offsets, each
+the start of one RGB565 palette (V1.03: table at `0x56AEC`, palettes at
+`0x56B34..0x57400`). The firmware loads them as nine pairs
+`{palette[i], palette[i + 9]}` and selects the pair member with the menu 906
+setting (config byte `0x1065`: 0 Black, 1 White). Grayscale PNGs are
+palette-index images mapped through `palette[kind][scheme]` at blit time;
+indexed PNGs carry their own PLTE and mostly exist as pixel-identical twins,
+one per scheme. Text uses a 10-entry RGB565 pair in FIRMWARE at flat offsets
+`0x15FAFC` (Black) and `0x15FB10` (White). The screen background is entry 28
+of palette pair 3/12. `thd75-theme` edits exactly these tables, plus the
+10-byte header version at IMAGE_DATA offset 0 (`$VS=0`, `$VL=10`): the
+loader's SETUP compares those bytes with the KEX `$VA` and writes the
+section only when they differ.
 
 ---
 

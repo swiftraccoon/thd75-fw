@@ -28,7 +28,7 @@ from __future__ import annotations
 import struct
 import wave
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Final, Literal
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -51,7 +51,9 @@ _AUDIO_BASE: int = 0x0BF8
 _HEADER_MODEL_ID = slice(0, 7)
 _HEADER_ENGINE_VERSION = slice(7, 24)
 _HEADER_ENTRY_COUNT_OFFSET = 0x20  # uint32 LE
-_INDEX_ENTRY_SIZE = 4              # bytes per cumulative-offset entry
+_INDEX_ENTRY_SIZE = 4  # bytes per cumulative-offset entry
+_MAX_ENTRY_COUNT: Final[int] = 10000
+"""Largest header entry count accepted as plausible (V1.03 has 749)."""
 
 Language = Literal["en", "ja", "zh"]
 """Three-letter language code recognized by this module."""
@@ -139,21 +141,24 @@ def load(data: bytes) -> PromptDatabase:
         ValueError: If the data is too small, the header is invalid,
             the index table doesn't fit, or any prompt's audio range
             exceeds the available data (would-be silent truncation).
+
     """
     if len(data) < _AUDIO_BASE:
         msg = f"Data too small: {len(data)} bytes (need at least {_AUDIO_BASE})"
         raise ValueError(msg)
 
     # Parse header
-    model_id = data[_HEADER_MODEL_ID].rstrip(b"\x00\xff ").decode(
-        "ascii", errors="replace"
+    model_id = (
+        data[_HEADER_MODEL_ID].rstrip(b"\x00\xff ").decode("ascii", errors="replace")
     )
-    engine_version = data[_HEADER_ENGINE_VERSION].rstrip(b"\x00\xff").decode(
-        "ascii", errors="replace"
+    engine_version = (
+        data[_HEADER_ENGINE_VERSION]
+        .rstrip(b"\x00\xff")
+        .decode("ascii", errors="replace")
     )
     entry_count = struct.unpack_from("<I", data, _HEADER_ENTRY_COUNT_OFFSET)[0]
 
-    if entry_count == 0 or entry_count > 10000:
+    if entry_count == 0 or entry_count > _MAX_ENTRY_COUNT:
         msg = f"Invalid entry count: {entry_count}"
         raise ValueError(msg)
 
@@ -206,13 +211,15 @@ def load(data: bytes) -> PromptDatabase:
             )
             raise ValueError(msg)
 
-        prompts.append(Prompt(
-            index=i,
-            offset=abs_start,
-            size=end - start,
-            data=data[abs_start:abs_end],
-            language=classify_language(index=i),
-        ))
+        prompts.append(
+            Prompt(
+                index=i,
+                offset=abs_start,
+                size=end - start,
+                data=data[abs_start:abs_end],
+                language=classify_language(index=i),
+            )
+        )
 
     return PromptDatabase(
         model_id=model_id,

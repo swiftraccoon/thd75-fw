@@ -18,8 +18,11 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
-      - run: pip install ruff
-      - run: ruff check src/ tests/
+      # Pinned to the uv.lock version: select = ["ALL"] gains rules with new
+      # ruff releases, so an unpinned install could fail unchanged code.
+      - run: pip install ruff==0.15.12
+      - run: ruff format --check src tests scripts firmware loaders
+      - run: ruff check src tests scripts firmware loaders
 
   typecheck:
     name: Type Check (Python ${{ matrix.python-version }})
@@ -35,15 +38,20 @@ jobs:
       - name: Install package and type-checker dependencies
         # Install the package itself so ``thd75_fw.*`` imports resolve
         # inside tests, plus the test deps used in ``tests/`` (pytest,
-        # hypothesis) and ``tomli`` explicitly. The runtime ``tomli``
-        # requirement in pyproject.toml is gated on ``python_version <
-        # '3.11'``, but ``pyrightconfig.json`` pins ``pythonVersion:
-        # 3.10`` so static analysis takes the ``else: import tomli as
-        # tomllib`` branch in patch.py on every Python — meaning tomli
-        # must be importable for the type-checker even when the host
-        # interpreter is 3.11+.
-        run: pip install -e . pytest pytest-cov hypothesis tomli mypy pyright
-      - run: mypy src/ tests/ --strict
+        # hypothesis), ``types-pyserial`` for the flasher's serial layer, and
+        # ``tomli`` explicitly. The runtime ``tomli`` requirement in
+        # pyproject.toml is gated on ``python_version < '3.11'``, but
+        # ``[tool.pyright]`` pins ``pythonVersion = "3.10"`` so static analysis
+        # takes the ``else: import tomli as tomllib`` branch in patch.py on
+        # every Python, meaning tomli must be importable for the type-checker
+        # even when the host interpreter is 3.11+. ``unicorn`` lets pyright find
+        # the module behind typings/unicorn. Checker versions are pinned
+        # to uv.lock so a new release cannot fail unchanged code.
+        run: >-
+          pip install -e . pytest pytest-cov hypothesis tomli
+          types-pyserial==3.5.0.20260712 unicorn==2.1.4 mypy==2.0.0 pyright==1.1.409
+      # Both read their file lists and strictness settings from pyproject.toml.
+      - run: mypy
       - run: pyright
 
   test:
@@ -57,8 +65,10 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
-      - run: pip install pytest hypothesis
+      - run: pip install -e . pytest hypothesis
       - run: PYTHONPATH=src pytest tests/ -v
+      - name: Firmware tool tests
+        run: PYTHONPATH=firmware python -m unittest discover -v -s firmware/tests -p 'test_*.py'
 
   package:
     name: Package validation
@@ -80,7 +90,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
-      - run: pip install pytest pytest-cov hypothesis
+      - run: pip install -e . pytest pytest-cov hypothesis
       - run: PYTHONPATH=src pytest tests/ --cov=thd75_fw --cov-report=xml --cov-report=term
       - uses: codecov/codecov-action@v6
         with:

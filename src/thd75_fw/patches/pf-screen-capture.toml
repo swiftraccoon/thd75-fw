@@ -160,18 +160,21 @@ file is produced — failure is naturally atomic.
 Thumb instruction's immediate field. No code is inserted, no addresses
 shift, no relocations apply, no call sites move.
 
-(3) CHECKBYTES is not invalidated: the 2-byte CHECKBYTES marker at
+(3) The updater-layer checksums are regenerated, while CHECKBYTES remains
+unchanged: the 2-byte CHECKBYTES marker at
 flash 0x00200062 (post-stamp value 0xB01D on V1.03, observed via
 hardware read — the extracted firmware section reads 0xFF here
 because the updater stamps these bytes into the ARM vector padding
-*after* the main firmware write) is a build-completion marker, not a
-content checksum. The firmware exposes it through a trivial getter
-(fw_checkbytes_read at DDR 0xC002AAF8) reached from exactly two
-callers: svc_9r_handler (the service CAT command 9R) and an
-info-display message builder at DDR 0xC00B7ED8 that formats the value
-as a hex string. Both callers only *read* CHECKBYTES; it is never
-compared against firmware content at boot or runtime, so changing
-firmware bytes elsewhere cannot invalidate it. The 2 patched bytes
+*after* the main firmware write). The extracted main firmware exposes
+it through a trivial getter (fw_checkbytes_read at DDR 0xC002AAF8)
+reached from exactly two callers: the service CAT command 2V handler
+at DDR 0xC006F8CA and an info-display message builder at DDR
+0xC00B7ED8 that formats the value as a hex string. Existing notes
+previously mislabeled the first caller as service 9R; re-reading the
+flat service table proves that records are `{handler:u32, mnemonic[4]}`
+and that 9R instead maps to DDR 0xC006F826. These main-firmware xrefs
+cannot establish whether the uncaptured D75 early bootloader also
+consumes CHECKBYTES. The 2 patched bytes
 are at flash 0x00210444 / 0x002104B8 — far from the CHECKBYTES /
 FINAL_ZZZ region (flash 0x00200040–0x0020007F), which this patch
 leaves untouched.
@@ -207,8 +210,9 @@ with any disassembler — Ghidra/IDA/objdump/etc.):
   - BMP geometry (240 × 180, 24-bit, BI_RGB) from the header template
     at DDR 0xC017D1BC; SD-card path string "/KENWOOD/TH-D75/CAPTURE"
     at DDR 0xC008FB5C; "Screen Capture" string at DDR 0xC0008C70.
-  - That fw_checkbytes_read is reached only by svc_9r_handler and
-    the info-display builder at 0xC00B7ED8 (xref count = 2).
+  - That the extracted main firmware reaches fw_checkbytes_read from
+    the service 2V handler at 0xC006F8CA and the info-display builder
+    at 0xC00B7ED8 (xref count = 2). This does not cover bootloader xrefs.
   - That Screen Capture lives at table index 27 with key byte 0x1F.
 
 External-source (NOT derivable from the firmware section alone):

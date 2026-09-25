@@ -22,7 +22,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
+
+from .patch import PatchVerificationError
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
@@ -39,6 +41,10 @@ __all__: list[str] = [
     "record_checksum",
     "to_text_lines",
 ]
+
+
+_EXTENDED_ADDRESS_LENGTH: Final[int] = 2
+"""Data bytes an extended-linear-address record needs: the upper 16 address bits."""
 
 
 class RecordType(IntEnum):
@@ -99,6 +105,7 @@ def parse(raw: bytes) -> ParseResult:
         Callers must check ``errors`` to detect truncation, unknown
         record types, or other corruption — these no longer fail
         silently in the parser.
+
     """
     image_data = bytearray()
     error_messages: list[str] = []
@@ -132,21 +139,9 @@ def parse(raw: bytes) -> ParseResult:
             )
             break
 
-        # Verify the record's checksum byte — every record's bytes sum
-        # to zero mod 256. A stale or corrupted record that slips past
-        # this check would silently bake bad data into the flat image
-        # (and any subsequent re-checksum after patching would mask the
-        # original corruption with a fresh-but-incorrect checksum).
-        payload_end: int = pos + 4 + byte_count
-        if payload_end < len(raw):
-            stored_checksum: int = raw[payload_end]
-            expected_checksum: int = (-sum(raw[pos:payload_end])) & 0xFF
-            if stored_checksum != expected_checksum:
-                error_messages.append(
-                    f"Bad record checksum at offset {pos}: "
-                    f"stored 0x{stored_checksum:02X}, "
-                    f"computed 0x{expected_checksum:02X}"
-                )
+        checksum_error = _checksum_error(raw, pos, pos + 4 + byte_count)
+        if checksum_error is not None:
+            error_messages.append(checksum_error)
 
         saw_any_record = True
 
@@ -157,7 +152,7 @@ def parse(raw: bytes) -> ParseResult:
             record_count += 1
 
         elif record_type == RecordType.EXTENDED_LINEAR_ADDRESS:
-            if byte_count < 2:
+            if byte_count < _EXTENDED_ADDRESS_LENGTH:
                 error_messages.append(
                     f"Extended-linear-address record at offset {pos} has "
                     f"byte_count={byte_count} (need >=2); base address unchanged"
@@ -178,30 +173,75 @@ def parse(raw: bytes) -> ParseResult:
 
         pos += record_len
 
-    # Trailing bytes that didn't form a complete record (and aren't pure padding)
-    # are a sign of truncation or stream corruption.
-    if not saw_eof and pos < len(raw) and any(b not in (0x00, 0xFF) for b in raw[pos:]):
-        error_messages.append(
-            f"{len(raw) - pos} trailing byte(s) at offset {pos} did not form a "
-            f"complete record (no EOF marker seen)"
+    error_messages.extend(
+        _stream_end_errors(
+            raw,
+            pos,
+            saw_eof=saw_eof,
+            saw_any_record=saw_any_record,
+            earlier_errors=bool(error_messages),
         )
-
-    # A stream containing data records but no EOF marker is itself a
-    # truncation signal — even when the stream happens to end exactly
-    # at a record boundary (no trailing bytes). The radio's loader
-    # relies on EOF; the absence of one is silent corruption.
-    if saw_any_record and not saw_eof and not error_messages:
-        error_messages.append(
-            "Stream ended without an EOF (type 0x01) record; "
-            "truncation cannot be ruled out"
-        )
-
+    )
     return ParseResult(
         data=bytes(image_data),
         base_address=base_address,
         record_count=record_count,
         errors=tuple(error_messages),
     )
+
+
+def _checksum_error(raw: bytes, pos: int, payload_end: int) -> str | None:
+    """Describe a bad checksum byte on the record at ``pos``, if it has one.
+
+    Every record's bytes sum to zero mod 256. A stale or corrupted record
+    that slips past this check would silently bake bad data into the flat
+    image (and any subsequent re-checksum after patching would mask the
+    original corruption with a fresh-but-incorrect checksum). A record whose
+    checksum byte would lie at or past the end of ``raw`` is not judged here.
+    """
+    if payload_end >= len(raw):
+        return None
+    stored_checksum: int = raw[payload_end]
+    expected_checksum: int = (-sum(raw[pos:payload_end])) & 0xFF
+    if stored_checksum == expected_checksum:
+        return None
+    return (
+        f"Bad record checksum at offset {pos}: "
+        f"stored 0x{stored_checksum:02X}, "
+        f"computed 0x{expected_checksum:02X}"
+    )
+
+
+def _stream_end_errors(
+    raw: bytes,
+    pos: int,
+    *,
+    saw_eof: bool,
+    saw_any_record: bool,
+    earlier_errors: bool,
+) -> list[str]:
+    """Report how a stream that stopped at ``pos`` without EOF is incomplete.
+
+    Trailing bytes that did not form a complete record (and are not pure
+    padding) are a sign of truncation or stream corruption. Failing that, a
+    stream holding records but no EOF marker is itself a truncation signal —
+    even when it ends exactly at a record boundary — unless an earlier error
+    already flags the stream. The radio's loader relies on EOF; the absence
+    of one is silent corruption.
+    """
+    if saw_eof:
+        return []
+    if pos < len(raw) and any(b not in (0x00, 0xFF) for b in raw[pos:]):
+        return [
+            f"{len(raw) - pos} trailing byte(s) at offset {pos} did not form a "
+            f"complete record (no EOF marker seen)"
+        ]
+    if saw_any_record and not earlier_errors:
+        return [
+            "Stream ended without an EOF (type 0x01) record; "
+            "truncation cannot be ruled out"
+        ]
+    return []
 
 
 def iter_records(raw: bytes) -> Iterator[Record]:
@@ -227,6 +267,7 @@ def iter_records(raw: bytes) -> Iterator[Record]:
             with ``parse`` (which reports truncation via
             ``ParseResult.errors``) is the kind of silent failure
             this codebase exists to surface.
+
     """
     pos = 0
     base_address = 0
@@ -249,7 +290,10 @@ def iter_records(raw: bytes) -> Iterator[Record]:
             checksum=raw[record_end - 1],
             base_address=base_address,
         )
-        if record_type == RecordType.EXTENDED_LINEAR_ADDRESS and byte_count >= 2:
+        if (
+            record_type == RecordType.EXTENDED_LINEAR_ADDRESS
+            and byte_count >= _EXTENDED_ADDRESS_LENGTH
+        ):
             base_address = ((raw[pos + 4] << 8) | raw[pos + 5]) << 16
         if record_type == RecordType.EOF:
             return
@@ -270,6 +314,7 @@ def to_text_lines(raw: bytes) -> list[str]:
         One string per record, in stream order, each starting with
         ``:``. Records past a truncated record, or past EOF, are not
         emitted (see ``iter_records``).
+
     """
     return [
         ":" + raw[rec.start : rec.start + 4 + rec.byte_count + 1].hex().upper()
@@ -291,6 +336,7 @@ def record_checksum(payload: bytes) -> int:
         ``payload`` modulo 256. Appended to ``payload`` it makes the
         whole record sum to zero — the invariant that must be
         restored after editing a data byte.
+
     """
     return (-sum(payload)) & 0xFF
 
@@ -316,13 +362,8 @@ def patch_image(raw: bytes, changes: Iterable[ByteChange]) -> bytes:
         PatchVerificationError: if any change's ``expect`` does not match
             the current byte in the firmware.
         ValueError: if an offset falls within no data record.
-    """
-    # Lazy import: PatchVerificationError lives in patch.py, the
-    # higher-level catalog module. A top-level import would create a
-    # cycle if patch.py later grew an intel_hex dependency, so we
-    # defer the import to call time.
-    from .patch import PatchVerificationError
 
+    """
     # Build the pending dict and confirm every change is distinct by
     # offset. ``Patch.__post_init__`` already enforces this for patches
     # parsed via ``parse_patch``, but ``patch_image`` accepts a raw
@@ -352,7 +393,9 @@ def patch_image(raw: bytes, changes: Iterable[ByteChange]) -> bytes:
             actual: int = buf[rec.start + 4 + data_index]
             if actual != change.expect:
                 raise PatchVerificationError(
-                    offset=offset, expected=change.expect, actual=actual,
+                    offset=offset,
+                    expected=change.expect,
+                    actual=actual,
                 )
             buf[rec.start + 4 + data_index] = change.value
         if hits:
@@ -370,5 +413,5 @@ def _write_at(buf: bytearray, offset: int, data: bytes) -> None:
     """Write ``data`` into ``buf`` at ``offset``, extending with 0xFF as needed."""
     end: int = offset + len(data)
     if end > len(buf):
-        buf.extend(b"\xFF" * (end - len(buf)))
+        buf.extend(b"\xff" * (end - len(buf)))
     buf[offset:end] = data

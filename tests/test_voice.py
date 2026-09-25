@@ -38,9 +38,11 @@ def _make_db(entry_count: int, segment_sizes: list[int]) -> bytes:
 
 
 class TestLoad:
-    """Database-level invariants: prompt count, header decoding, and
-    explicit rejection of malformed inputs that would otherwise produce
-    silently-wrong output."""
+    """Database-level invariants.
+
+    Covers the prompt count, header decoding, and explicit rejection of
+    malformed inputs that would otherwise produce silently-wrong output.
+    """
 
     def test_load_returns_one_prompt_per_index_table_entry(self) -> None:
         sizes = [100, 200, 150]
@@ -54,7 +56,7 @@ class TestLoad:
 
     def test_too_small_raises(self) -> None:
         with pytest.raises(ValueError, match="too small"):
-            load(b"\x00" * 10)
+            _ = load(b"\x00" * 10)
 
     def test_truncated_data_raises(self) -> None:
         # Header claims 3 prompts ending at audio offset 600, but we
@@ -64,14 +66,14 @@ class TestLoad:
         # Cut off the last 50 bytes of audio.
         truncated = full[:-50]
         with pytest.raises(ValueError, match="extends to offset"):
-            load(truncated)
+            _ = load(truncated)
 
     def test_invalid_entry_count_raises(self) -> None:
         # Build a header with an absurd entry count.
         data = bytearray(_AUDIO_BASE)
         struct.pack_into("<I", data, 0x20, 99999)
         with pytest.raises(ValueError, match="entry count"):
-            load(bytes(data))
+            _ = load(bytes(data))
 
     def test_index_table_overflowing_audio_base_raises(self) -> None:
         # Each entry is 4 bytes; the table starts at 0x40. With audio
@@ -85,7 +87,7 @@ class TestLoad:
         )  # room for the bogus table plus a little audio
         struct.pack_into("<I", data, 0x20, entry_count)
         with pytest.raises(ValueError, match="overlapping the audio data"):
-            load(bytes(data))
+            _ = load(bytes(data))
 
     def test_non_monotonic_offsets_raises(self) -> None:
         # Cumulative offsets must monotonically non-decrease. A
@@ -99,12 +101,14 @@ class TestLoad:
         struct.pack_into("<I", header, _INDEX_TABLE_OFFSET + 2 * 4, 200)
         audio = bytearray(b"\x10" * 200)
         with pytest.raises(ValueError, match="non-monotonic"):
-            load(bytes(header) + bytes(audio))
+            _ = load(bytes(header) + bytes(audio))
 
 
 class TestClassifyLanguage:
-    """V1.03 prompt-index → language-code mapping at the documented
-    en/ja/zh boundaries."""
+    """V1.03 prompt-index to language-code mapping.
+
+    Checked at the documented en/ja/zh boundaries.
+    """
 
     def test_english_range(self) -> None:
         assert classify_language(0) == "en"
@@ -120,8 +124,10 @@ class TestClassifyLanguage:
 
 
 class TestPrompt:
-    """Prompt dataclass behavior: derived properties and to_wav output
-    format."""
+    """Prompt dataclass behavior.
+
+    Covers the derived properties and the to_wav output format.
+    """
 
     def test_duration(self) -> None:
         prompt = Prompt(
@@ -135,7 +141,11 @@ class TestPrompt:
 
     def test_to_wav_writes_well_formed_wav(self, tmp_path: Path) -> None:
         prompt = Prompt(
-            index=0, offset=0, size=100, data=b"\x00" * 100, language="en",
+            index=0,
+            offset=0,
+            size=100,
+            data=b"\x00" * 100,
+            language="en",
         )
         wav_path = tmp_path / "test.wav"
         prompt.to_wav(wav_path)

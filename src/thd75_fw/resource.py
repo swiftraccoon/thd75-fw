@@ -10,6 +10,7 @@ CLI ``--resource`` flag rather than relying on path-based discovery.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Final
 
 __all__: list[str] = ["extract", "load", "replace"]
 
@@ -17,15 +18,17 @@ _HEX_CHARS: frozenset[int] = frozenset(b"0123456789abcdefABCDEF")
 _DOLLAR_BYTE: int = ord("$")
 
 _MIN_RESOURCE_SIZE: int = 1_000_000  # Must be > 1 MB to be valid
+_MIN_METADATA_LINE_LENGTH: Final[int] = 4
+"""Shortest ``$`` line, marker included, accepted as a resource-start candidate."""
 
 
 def _is_resource_line(line: bytes) -> bool:
-    """Return True if ``line`` looks like a resource line: hex chars only,
-    optionally with a leading ``$`` for metadata lines.
+    """Return True if every byte of ``line`` is a hex digit or ``$``.
 
-    The resource is pure ASCII hex pairs interleaved with ``$``-prefixed
-    metadata lines, so any byte outside ``[0-9a-fA-F$]`` disqualifies a
-    candidate region.
+    That is the shape of a resource line: hex characters only, with a
+    leading ``$`` on metadata lines. The resource is pure ASCII hex pairs
+    interleaved with ``$``-prefixed metadata lines, so any byte outside
+    ``[0-9a-fA-F$]`` disqualifies a candidate region.
     """
     return all(c in _HEX_CHARS or c == _DOLLAR_BYTE for c in line)
 
@@ -51,6 +54,7 @@ def load(exe_path: Path) -> str:
     Raises:
         FileNotFoundError: If ``exe_path`` does not exist.
         ValueError: If the resource cannot be found in the PE.
+
     """
     return _scan_pe(Path(exe_path))
 
@@ -66,6 +70,7 @@ def extract(exe_data: bytes) -> str:
 
     Raises:
         ValueError: if the resource cannot be located.
+
     """
     start, end = _find_resource_span(exe_data)
     return exe_data[start:end].decode("ascii", errors="strict")
@@ -89,6 +94,7 @@ def replace(exe_data: bytes, new_resource: str) -> bytes:
     Raises:
         ValueError: if the resource cannot be located, or
             ``new_resource`` is not the same length as the original.
+
     """
     start, end = _find_resource_span(exe_data)
     replacement: bytes = new_resource.encode("ascii")
@@ -119,6 +125,7 @@ def _find_resource_span(data: bytes) -> tuple[int, int]:
 
     Raises:
         ValueError: if no resource region is found.
+
     """
     for candidate_start in range(len(data) - 100):
         if data[candidate_start] != _DOLLAR_BYTE:
@@ -128,7 +135,7 @@ def _find_resource_span(data: bytes) -> tuple[int, int]:
         line_end: int = data.find(b"\r\n", candidate_start)
         if line_end < 0:
             line_end = data.find(b"\n", candidate_start)
-        if line_end < 0 or line_end - candidate_start < 4:
+        if line_end < 0 or line_end - candidate_start < _MIN_METADATA_LINE_LENGTH:
             continue
 
         if not _is_resource_line(data[candidate_start:line_end]):

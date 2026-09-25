@@ -8,6 +8,119 @@ under a `0.x` minor-version-as-breaking-change policy until `1.0.0`.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-24
+
+### Added
+
+- `thd75-theme` CLI and `thd75_fw.theme` package: derive a display theme patch
+  from the stock FIRMWARE and IMAGE_DATA sections. Catalog entry
+  `orange-on-black` re-skins menu 906's "White" option as deep orange
+  (255,140,0) on black: White palette set, White text palette, 127 icon
+  twins, two digit palettes inverted in place, label "Orange", and the
+  IMAGE_DATA header version bumped to 1.00.02.01 so the loader writes the section.
+  `build_theme` takes its naming and table settings as `ThemeOptions`, and
+  `render_patch_toml` takes a `PatchTomlContent`.
+- Patch TOML: `section` on changes and contexts, `[sections.<NAME>]` hash
+  pins, `version` to assign a block's `$VA`, and equal-length hex
+  `expect`/`value` runs that pin their window.
+- `kex.section_image`, `kex.patch_kex_stack`, `kex.patch_resource_stack`;
+  `thd75-patch` and `thd75-repack` accept repeated `--patch`, print the
+  rendered KEX SHA-256 (patch) or the patched updater SHA-256 (repack), and
+  summarise large patches per section. In a stack, only the first stage's
+  `source_updater_sha256` is checked against the official updater; later
+  stages pin the exe chain that built them and are reported as not checked.
+- `thd75-flash` CLI: native cross-platform flasher for `.KEX` firmware
+  images. Speaks the Kenwood FLDM serial protocol the official .NET
+  updater uses, so a Windows VM is no longer required. Supports
+  `--probe-only` (unlock handshake only, with no NOR-write verb) and
+  `--probe-target` (unlock + ENTER + target identification, also with no
+  NOR-write verb) for staged hardware bring-up. `--dry-run` performs
+  image/plan validation entirely offline and never opens a serial device. Prints the
+  official pre-flash checklist (battery, [PTT]+[1] programming-mode
+  entry, USB cable) and the post-flash Full Reset reminder. Real writes keep
+  pyserial's read timeout fixed instead of reassigning it before every ACK;
+  on macOS that setter repeatedly invoked `IOSSIOSPEED` at the custom
+  576000-baud rate, and holding the deadline brought the hardware-qualified
+  V18 flash to 19.3 seconds while preserving direct-open, write/`tcdrain`,
+  and exact-read ordering.
+- `thd75_fw.flash` library: `FlashSession` orchestrator,
+  `SegmentDescriptor` (the 14-field per-segment payload), `Verb` /
+  `AckCode` / `NakSubcode` / `UnframedResponse` for the typed wire
+  protocol, `Probe` / `HandshakeResult` for the encrypted-unlock
+  exchange, `FlashError` / `FlashOutcome` / `TargetInfo` for typed
+  results, and `FlashSessionOptions` / `FlashRunOptions` /
+  `FlatImageOptions` for session, run and raw-image settings. Sans-io discipline: every layer except `serial_io.py` is
+  pure and unit-testable; `pyserial` is the only I/O dependency. Rich-
+  based progress UI lives in `thd75_fw.flash_ui`.
+- Artifact-specific `--acknowledge-service-9r-write` safety gate for the exact
+  experimental service-9r KEX. It is independent of `--yes` and cannot be used
+  with stock/unpinned KEX, dry-run, raw, probe, or SETUP modes. Its attestation
+  covers only the ordered pre-write prerequisites; the patched small-read and
+  bounds check follows the write, and `9r-dump` repeats that gate before any
+  full reads.
+- Exact hash-pinned `normal-gm-nor-read-usb-recover` V18 artifact for the
+  TH-D75 V1.03 USB mass-storage path. It corrects the advertised SD geometry,
+  preserves storage ownership through the asynchronous USB handoff, services
+  host reads with bounded stock CMD17 operations, and exposes fail-closed live
+  telemetry. The tested TH-D75A/card/macOS combination automatically
+  enumerated and passed 93 read operations over 2,604 sectors without a
+  firmware failure or recovery.
+- Catalog patches `normal-gm-ddr-read` and `normal-gm-nor-read`: turn the
+  normal-mode CAT command `GM` into a bounded DDR or NOR reader, both
+  hardware-qualified on TH-D75 V1.03, and the experimental
+  `service-9r-nor-read` manifest with its dedicated write gate.
+- Catalog patch `normal-gm-nor-read-usb-recover-azimuth`: the closed-loop
+  Azimuth automation overlay (identity `V1.03.AZM`, ABI-3) on the exact
+  V18 USB-storage recovery firmware; built deterministically by
+  `scripts/build_radio_automation.py` and described in
+  `firmware/RADIO_AUTOMATION.md`.
+- The AZM firmware with the orange theme (`normal-gm-nor-read`,
+  `normal-gm-nor-read-usb-recover`, `normal-gm-nor-read-usb-recover-azimuth`,
+  `orange-on-black`) renders KEX SHA-256 `c9a42fabbb5accd6da0a459e0238b4e79ce13ce1126127d738e9c317f4487ce2` and is admitted to
+  `thd75-flash` real writes as "TH-D75 V1.03.AZM Azimuth automation + orange-on-black"
+  under the normal-GM fast plan. Hardware-confirmed on the TH-D75 on
+  2026-09-24: FIRMWARE, IMAGE_DATA and both overlays wrote and verified
+  through the fast plan, and the Orange option renders as designed; the
+  log and wire trace are retained privately under `dist/`.
+- `firmware/` low-NOR capture toolkit: the audited `capture_dump.py` receiver,
+  the static `audit.py` checks, and the retained Rust dumper workspace (not
+  cleared for flashing). These trees are not part of the distributed package.
+- `docs/USAGE.md` documents stock-firmware recovery from a pinned plaintext
+  KEX rendered from the official updater.
+- Reverse-engineering scope for the flasher: the FLDM ("FldmLoader") serial
+  protocol used to flash firmware: 11 verbs
+  (`30 31 33 40 42 43 44 45 50 a0 a3`),
+  `ab ab 00 [len:u32] [verb] [data] [cksum]` frame format with 8-bit
+  additive checksum, XOR encryption derived per-session from the handshake
+  exchange, and the 14-field SegmentDescriptor that maps directly to KEX-file
+  `$`-tagged metadata. Protocol structure cross-referenced against community
+  RE docs for related Kenwood handhelds; D75-specific deltas (magic word
+  `"Thd75tw"`, XOR-key derivation formula) verified against the .NET updater
+  decompilation. Subsequent D75 V1.03 hardware work established the 17-byte
+  `TargetInfo` payload, a cleartext `FPROMOD` update path, and the stock entry
+  sequence without `SELECT_TARGET`; model-specific boot-image semantics remain
+  unresolved until the low D75 NOR is captured.
+
+### Changed
+
+- `patch_kex` and `patch_resource` patch every KEX block a change names,
+  recomputing that block's `$CA`. FIRMWARE-only patches render unchanged.
+- New runtime dependencies `pyserial` and `rich`, and two new console scripts
+  (`thd75-flash`, `thd75-theme`). Under the `0.x` policy this is a minor bump.
+- `serial_cipher.verify_round_trip` raises `AssertionError` explicitly, so the
+  round-trip check also runs under `python -O`.
+- Development: ruff runs every rule, mypy runs `--strict` with every optional
+  error code and bans explicit `Any`, and pyright runs strict with every
+  optional check; each exemption is documented in `pyproject.toml`. CI checks
+  formatting, lint and types across `src`, `tests`, `scripts`, `firmware` and
+  `loaders` with pinned tool versions, and runs the firmware tool tests.
+
+### Fixed
+
+- `thd75-extract --verify` without `--section` no longer reports PASS when the
+  reference directory is missing or holds no `*.bin` files; verification now
+  fails when there is nothing to compare.
+
 ## [0.2.0] - 2026-05-19
 
 ### Added
@@ -207,6 +320,7 @@ under a `0.x` minor-version-as-breaking-change policy until `1.0.0`.
 - `docs/FORMAT.md`: consolidated reference for cipher algorithms, section
   layout, OMAP-L138 memory map, and voice/image database structures.
 
-[Unreleased]: https://github.com/swiftraccoon/thd75-fw/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/swiftraccoon/thd75-fw/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/swiftraccoon/thd75-fw/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/swiftraccoon/thd75-fw/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/swiftraccoon/thd75-fw/releases/tag/v0.1.0

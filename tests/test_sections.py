@@ -46,8 +46,10 @@ class TestSectionInfoFilename:
 
 
 class TestLookups:
-    """``lookup_by_address`` and ``lookup_by_name`` return Optional types
-    so callers can distinguish known sections from unknown addresses."""
+    """``lookup_by_address`` and ``lookup_by_name`` return Optional types.
+
+    Callers can then distinguish known sections from unknown addresses.
+    """
 
     def test_lookup_by_address_known(self) -> None:
         info = lookup_by_address(FlashAddress(0x00200000))
@@ -67,15 +69,14 @@ class TestLookups:
 
 
 class TestNameForAddress:
-    """``name_for_address`` always returns a string; unknown addresses
-    get a synthesized ``UNKNOWN_<hex>`` form distinguishable from real
-    section names."""
+    """``name_for_address`` always returns a string.
+
+    Unknown addresses get a synthesized ``UNKNOWN_<hex>`` form distinguishable
+    from real section names.
+    """
 
     def test_known_returns_name(self) -> None:
         assert name_for_address(FlashAddress(0x01600000)) == "DATA_0160"
 
     def test_unknown_returns_unknown_format(self) -> None:
-        assert (
-            name_for_address(FlashAddress(0xDEADBEEF))
-            == "UNKNOWN_DEADBEEF"
-        )
+        assert name_for_address(FlashAddress(0xDEADBEEF)) == "UNKNOWN_DEADBEEF"

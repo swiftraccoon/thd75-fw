@@ -31,6 +31,8 @@ classifiers = [
 ]
 dependencies = [
     "tomli >= 1.1.0; python_version < '3.11'",
+    "pyserial >= 3.5",
+    "rich >= 13",
 ]
 
 [project.urls]
@@ -43,10 +45,12 @@ Changelog = "https://github.com/swiftraccoon/thd75-fw/blob/main/CHANGELOG.md"
 thd75-extract = "thd75_fw.cli:main_extract"
 thd75-extract-voice = "thd75_fw.cli:main_extract_voice"
 thd75-extract-images = "thd75_fw.cli:main_extract_images"
+thd75-flash = "thd75_fw.cli:main_flash"
 thd75-list-patches = "thd75_fw.cli:main_list_patches"
 thd75-patch = "thd75_fw.cli:main_patch"
 thd75-repack = "thd75_fw.cli:main_repack"
 thd75-serial-cipher = "thd75_fw.cli:main_serial_cipher"
+thd75-theme = "thd75_fw.cli:main_theme"
 
 [tool.hatch.version]
 path = "src/thd75_fw/__init__.py"
@@ -72,7 +76,6 @@ include = [
     "/LICENSE",
     "/README.md",
     "/pyproject.toml",
-    "/pyrightconfig.json",
 ]
 exclude = [
     "**/__pycache__",
@@ -85,35 +88,112 @@ exclude = [
 # type-checks under mypy/pyright running on Python 3.11+, where the runtime
 # dependency is not installed (pyrightconfig.json pins pythonVersion=3.10,
 # so static analysis takes the else-branch regardless of host Python).
-dev = ["pytest", "pytest-cov", "ruff", "mypy", "pyright", "hypothesis", "tomli"]
+# unicorn: the automation overlay builder's optional emulator; installed here so
+# type checking resolves its module source (typings/unicorn holds the stubs).
+dev = ["pytest", "pytest-cov", "ruff", "mypy", "pyright", "hypothesis", "tomli", "types-pyserial", "unicorn"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["tests"]
+markers = [
+    "slow: end-to-end runs over the full-size firmware package; needs --run-slow",
+]
 
 [tool.mypy]
+# Strictest mypy: --strict plus every optional error code, unreachable-code
+# warnings, and bans on explicit, decorated and unimported Any.
+# disallow_any_expr stays off: typeshed types struct, json and tomllib results
+# as Any, so enabling it forces casts rather than stronger code.
 strict = true
+warn_unreachable = true
+disallow_any_explicit = true
+disallow_any_decorated = true
+disallow_any_unimported = true
+enable_error_code = [
+    "deprecated",
+    "exhaustive-match",
+    "explicit-override",
+    "ignore-without-code",
+    "mutable-override",
+    "possibly-undefined",
+    "redundant-expr",
+    "redundant-self",
+    "truthy-bool",
+    "truthy-iterable",
+    "unimported-reveal",
+    "unused-awaitable",
+]
+files = ["src", "tests", "scripts", "firmware"]
+mypy_path = "typings:firmware"
+# The IDA and Ghidra loaders run inside their host applications, whose
+# modules have no type information; ruff still lints them.
+exclude = ["^loaders/", "^firmware/target/", "^docs/"]
+
+[[tool.mypy.overrides]]
+# hypothesis types @given as returning Callable[..., None]; that Any belongs to
+# the framework's signature, not to the decorated test.
+module = ["tests.*"]
+disallow_any_decorated = false
+
+[tool.pyright]
+# Strict mode plus every check that strict mode leaves off, except
+# reportImplicitStringConcatenation: it bans the implicit concatenation that
+# ruff's ISC003 requires in place of explicit "+", so both cannot hold.
+include = ["src", "tests", "scripts", "firmware"]
+exclude = ["loaders", "firmware/target", "docs", "**/node_modules", "**/__pycache__", "**/.*", ".venv"]
+extraPaths = [".", "tests", "firmware"]
+stubPath = "typings"
+pythonVersion = "3.10"
+typeCheckingMode = "strict"
+reportMissingTypeStubs = "error"
+reportCallInDefaultInitializer = "error"
+reportImplicitOverride = "error"
+reportImportCycles = "error"
+reportMissingSuperCall = "error"
+reportPropertyTypeMismatch = "error"
+reportUninitializedInstanceVariable = "error"
+reportUnnecessaryTypeIgnoreComment = "error"
+reportUnusedCallResult = "error"
+executionEnvironments = [
+    # Tests exercise private helpers directly.
+    { root = "tests", reportPrivateUsage = "none" },
+    { root = "firmware/tests", reportPrivateUsage = "none" },
+]
 
 [tool.ruff]
 target-version = "py310"
 line-length = 88
 
+[tool.ruff.format]
+docstring-code-format = true
+
 [tool.ruff.lint]
-select = [
-    "E",    # pycodestyle errors
-    "W",    # pycodestyle warnings
-    "F",    # pyflakes
-    "I",    # isort
-    "B",    # flake8-bugbear
-    "C4",   # flake8-comprehensions
-    "UP",   # pyupgrade
-    "ANN",  # flake8-annotations
-    "RUF",  # ruff-specific
-    "TCH",  # type-checking imports
-]
+# Every rule. The only global exclusions are rules that contradict another
+# enabled rule or the formatter; each is named with the rule it yields to.
+select = ["ALL"]
 ignore = [
-    "E501",  # line length handled by formatter; subst table needs wide lines
+    "COM812",  # conflicts with ruff format's trailing-comma handling
+    "ISC001",  # conflicts with ruff format's string joining
+    "D203",    # mutually exclusive with D211 (no blank line before class docstring)
+    "D213",    # mutually exclusive with D212 (summary on the first docstring line)
+    "E501",    # ruff format owns line length; the substitution table needs wide lines
 ]
+
+[tool.ruff.lint.per-file-ignores]
+# pytest's assertion rewriting requires bare asserts; tests pin literal
+# expected values and exercise private helpers (pyright also permits private
+# usage under tests/); test names document intent.
+"tests/**" = ["S101", "PLR2004", "SLF001", "D1"]
+"firmware/tests/**" = ["S101", "PLR2004", "SLF001", "D1", "INP001"]
+# Standalone command-line tools: they print by design and are not packages.
+"firmware/*.py" = ["INP001", "T201"]
+"scripts/*.py" = ["INP001", "T201"]
+"loaders/*.py" = ["INP001", "T201"]
+"src/thd75_fw/cli.py" = ["T201"]
+"src/thd75_fw/flash/qualification.py" = ["T201"]  # python -m thd75_fw.flash.qualification
+# Runs under Ghidra's Jython 2.7: no annotations or f-strings, and Ghidra
+# injects currentProgram and the flat API into the script's globals.
+"loaders/ghidra_thd75.py" = ["ANN", "UP", "F821", "FA"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["thd75_fw"]

@@ -16,8 +16,10 @@ from thd75_fw.serial_cipher import (
 
 
 class TestRoundTrip:
-    """Encrypt followed by decrypt with the same key always recovers the
-    original plaintext — the cipher's defining correctness property."""
+    """Encrypt then decrypt with the same key always recovers the plaintext.
+
+    This is the cipher's defining correctness property.
+    """
 
     @pytest.mark.parametrize("byte_value", range(256))
     def test_single_byte_round_trips(self, byte_value: int) -> None:
@@ -39,8 +41,11 @@ class TestRoundTrip:
 
 
 class TestKeyBehavior:
-    """Key parameter semantics: 0 disables the cipher (passthrough),
-    different keys produce different output."""
+    """Key parameter semantics.
+
+    A key of 0 disables the cipher (passthrough), and different keys produce
+    different output.
+    """
 
     def test_zero_key_passthrough(self) -> None:
         data = b"ABC"
@@ -57,32 +62,34 @@ class TestKeyBehavior:
 
 
 class TestKeyValidation:
-    """The key parameter must be a single byte (0..255). Negative and
-    out-of-range keys silently produced wrong output (key=-1) or an
-    opaque IndexError from deep in the decrypt loop (key=300); both
-    now fail loudly at the cipher boundary."""
+    """The key parameter must be a single byte (0..255).
+
+    Negative and out-of-range keys silently produced wrong output (key=-1) or
+    an opaque IndexError from deep in the decrypt loop (key=300); both now fail
+    loudly at the cipher boundary.
+    """
 
     def test_negative_key_rejected(self) -> None:
         with pytest.raises(ValueError, match=r"key must be 0\.\.255"):
-            encrypt(b"hello", key=-1)
+            _ = encrypt(b"hello", key=-1)
         with pytest.raises(ValueError, match=r"key must be 0\.\.255"):
-            decrypt(b"hello", key=-1)
+            _ = decrypt(b"hello", key=-1)
 
     def test_too_large_key_rejected(self) -> None:
         # key=256 is the smallest invalid positive key. key=300 was the
         # reviewer's example — both must be rejected up front.
         with pytest.raises(ValueError, match=r"key must be 0\.\.255"):
-            encrypt(b"hello", key=256)
+            _ = encrypt(b"hello", key=256)
         with pytest.raises(ValueError, match=r"key must be 0\.\.255"):
-            decrypt(b"hello", key=300)
+            _ = decrypt(b"hello", key=300)
 
     def test_bool_key_rejected(self) -> None:
         # bool is a subclass of int in Python; key=True would silently
         # mean key=1 without explicit rejection.
         with pytest.raises(TypeError, match="key must be an integer"):
-            encrypt(b"hello", key=True)
+            _ = encrypt(b"hello", key=True)
         with pytest.raises(TypeError, match="key must be an integer"):
-            decrypt(b"hello", key=False)
+            _ = decrypt(b"hello", key=False)
 
     def test_boundary_keys_accepted(self) -> None:
         # 0 and 255 are valid single-byte keys.
@@ -96,8 +103,10 @@ class TestKeyValidation:
 
 
 class TestSubstitutionTable:
-    """The 256-byte substitution table is a true permutation, validated
-    at construction; from_bytes rejects non-permutations."""
+    """The 256-byte substitution table is a true permutation.
+
+    It is validated at construction, and from_bytes rejects non-permutations.
+    """
 
     def test_is_permutation(self) -> None:
         assert sorted(_SUBST_TABLE) == list(range(256))
@@ -115,16 +124,18 @@ class TestSubstitutionTable:
     def test_non_permutation_rejected(self) -> None:
         # All-zeros isn't a permutation; from_bytes must refuse it.
         with pytest.raises(ValueError, match="permutation"):
-            SubstitutionTable.from_bytes(b"\x00" * 256)
+            _ = SubstitutionTable.from_bytes(b"\x00" * 256)
 
     def test_wrong_length_rejected(self) -> None:
         with pytest.raises(ValueError, match="permutation"):
-            SubstitutionTable.from_bytes(b"\x00" * 255)
+            _ = SubstitutionTable.from_bytes(b"\x00" * 255)
 
 
 class TestEdgeCases:
-    """Boundary inputs (empty, large, all-same-byte) the round-trip
-    parametrization doesn't reach."""
+    """Boundary inputs the round-trip parametrization doesn't reach.
+
+    Covers empty, large, and all-same-byte inputs.
+    """
 
     def test_empty_input(self) -> None:
         assert encrypt(b"") == b""
@@ -135,7 +146,7 @@ class TestEdgeCases:
         assert decrypt(encrypt(plain)) == plain
 
     def test_all_same_byte(self) -> None:
-        plain = b"\xAA" * 1024
+        plain = b"\xaa" * 1024
         # Even with a uniform plaintext, ciphertext should not be uniform
         # (the cipher's index-driven substitution depends on the key).
         ct = encrypt(plain)
@@ -144,8 +155,10 @@ class TestEdgeCases:
 
 
 class TestRoundTripProperty:
-    """Property-based test using hypothesis. Shrinks to the minimal
-    failing example for any future regression."""
+    """Property-based test using hypothesis.
+
+    Shrinks to the minimal failing example for any future regression.
+    """
 
     @given(
         data=st.binary(min_size=0, max_size=4096),

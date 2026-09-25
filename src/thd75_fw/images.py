@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import struct
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -33,11 +33,12 @@ __all__: list[str] = [
 
 _OFFSET_TABLE_START: int = 0x30
 _PNG_SIGNATURE: bytes = b"\x89PNG\r\n\x1a\n"
+_PNG_SIGNATURE_LENGTH: Final[int] = len(_PNG_SIGNATURE)
 
 # Header field locations within IMAGE_DATA (V1.03 layout).
 _HEADER_VERSION = slice(0, 11)
 _HEADER_TABLE_OFFSET_FIELD = 0x28  # uint32 LE; should equal _OFFSET_TABLE_START
-_OFFSET_ENTRY_SIZE = 4             # bytes per offset-table entry
+_OFFSET_ENTRY_SIZE = 4  # bytes per offset-table entry
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,7 +56,7 @@ class Image:
 
     def save(self, path: Path) -> None:
         """Write this image to a file."""
-        path.write_bytes(self.data)
+        _ = path.write_bytes(self.data)
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,14 +85,15 @@ def load(data: bytes) -> ImageDatabase:
         ValueError: If the data is too small, the header is invalid,
             the offset table is implausible, or any image starts
             past the end of data (would-be silent truncation).
+
     """
     if len(data) < _OFFSET_TABLE_START + _OFFSET_ENTRY_SIZE:
         msg = f"Data too small: {len(data)} bytes"
         raise ValueError(msg)
 
     # Parse header
-    version = data[_HEADER_VERSION].rstrip(b"\x00\xff").decode(
-        "ascii", errors="replace"
+    version = (
+        data[_HEADER_VERSION].rstrip(b"\x00\xff").decode("ascii", errors="replace")
     )
     table_offset = struct.unpack_from("<I", data, _HEADER_TABLE_OFFSET_FIELD)[0]
 
@@ -137,11 +139,13 @@ def load(data: bytes) -> ImageDatabase:
         # and any 0xFF padding between this PNG and the next is correctly excluded.
         png_end = _find_png_end(data, start, min(end, len(data)))
 
-        images.append(Image(
-            index=i,
-            offset=start,
-            data=data[start:png_end],
-        ))
+        images.append(
+            Image(
+                index=i,
+                offset=start,
+                data=data[start:png_end],
+            )
+        )
 
     return ImageDatabase(
         version=version,
@@ -160,10 +164,14 @@ def _find_png_end(data: bytes, start: int, max_end: int) -> int:
     PNG signature is invalid, or ``max_end`` if a chunk extends past the
     boundary (truncated/corrupt PNG).
     """
-    if max_end - start < 8 or data[start : start + 8] != _PNG_SIGNATURE:
+    signature_end = start + _PNG_SIGNATURE_LENGTH
+    if (
+        max_end - start < _PNG_SIGNATURE_LENGTH
+        or data[start:signature_end] != _PNG_SIGNATURE
+    ):
         return start  # No valid PNG signature
 
-    pos = start + 8  # Skip signature
+    pos = signature_end  # Skip signature
     while pos + 12 <= max_end:  # 8-byte chunk header + at least 4-byte CRC
         chunk_len = int.from_bytes(data[pos : pos + 4], "big")
         chunk_type = data[pos + 4 : pos + 8]

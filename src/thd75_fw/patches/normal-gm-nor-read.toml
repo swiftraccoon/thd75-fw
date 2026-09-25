@@ -1,0 +1,519 @@
+name = "normal-gm-nor-read"
+description = """
+Turn the normal-mode CAT command `GM` into a live NOR flash reader. After this
+patch a running radio answers `GM OOOOOO,LL\\r` with the contents of
+CPU-visible NOR at `0x60000000 + OOOOOO`, encoded as uppercase hexadecimal. No
+service mode, no programming mode, no SD card, and nothing visible to the
+operator.
+
+RELATIONSHIP TO normal-gm-ddr-read
+
+This is that patch with one byte changed. Group B builds the read base with
+`movs r6,#imm ; lsls r6,r6,#24`; the DDR variant uses `imm = 0xC0` for
+`0xC0000000`, this one uses `imm = 0x60` for `0x60000000`. Everything else --
+the bound widening, the memcpy, the adapter with its completion-status write,
+and the unchanged stock dispatch-table entry -- is byte-identical to the
+variant already proven on real V1.03 hardware.
+
+WHY THE BASE CHANGE MATTERS
+
+`0xC0000000` is DDR. Its low 1.7 MiB holds the *main firmware* image copy, and
+a 16 MiB capture from that base contains only that image, two small data
+islands, and unwritten DRAM. There is no offset in that capture that reaches
+the separate low-NOR boot image.
+
+`0x60000000` is the CPU-visible NOR window, where offset 0 is NOR 0x00000000.
+NOR `0x00000000`-`0x00200000` is the 2 MiB low-NOR candidate window immediately
+below the official main-firmware image and omitted by stock main updates. The
+qualified capture confirms Boot Program at `0x000000`-`0x01FFFF`, FLDM loader
+at `0x020000`-`0x05FFFF`, and configuration/data banks beginning at
+`0x0A0000`. This patch makes exactly that candidate window readable at offsets
+`0x000000`-`0x1FFFFF` over ordinary CAT.
+
+The NOR base is also how `service-9r-nor-read` reads flash, but that variant
+requires the `9R` service path. Pairing the NOR base with the normal-mode `GM`
+adapter is new.
+
+SAFETY NOTE SPECIFIC TO THIS VARIANT
+
+The service manual establishes a 32 MiB NOR device on this CPU window, so the
+command's first 16 MiB is physically backed. The qualified capture established
+the loader boundaries above, but that does not broaden the approved scope. The
+host remains deliberately limited to the 2 MiB low-NOR candidate window; do
+not turn this into an unrelated 16 MiB sweep. This command only reads; it
+writes nothing.
+
+This exact artifact and bounded host path were hardware-qualified on a V1.03
+radio on 2026-07-26. Read the stock recovery procedure in `docs/USAGE.md`,
+prove Firmware Programming Mode entry, and retain a verified stock restore
+artifact before repeating the flash.
+
+WHAT IT DOES
+
+Three in-place edits to the stock V1.03 FIRMWARE section:
+
+  A. Widen the `9R` read handler's accepted window from 0x50000 to 0x1000000.
+  B. Retarget that handler's read to `0x60000000 + offset` with a plain memcpy.
+  C. Replace the first 14 bytes of the stock `GM` handler with an adapter that
+     calls the read handler and marks the normal CAT command complete.
+
+No command-table growth, no code cave, no relocation. The adapter replaces the
+start of the existing `GM` handler. Every edit is length preserving, so no
+addresses shift and no call sites move.
+
+WHY THIS WORKS (the dispatcher)
+
+`cat_dispatch_normal` at DDR 0xC002E154 uppercases the first two characters of
+the request, linear-scans all 56 table entries comparing two bytes, and on a
+match executes `BLX table[i].handler` unconditionally at 0xC002E1BE. There is
+no per-mnemonic and no per-index gating: the state byte from 0xC002AAB0 is
+fetched before the scan and consulted only after the handler returns.
+
+A second dispatcher at 0xC002E088 reaches the same table with the same bound
+and the same two-byte compare, gated at entry by 0xC002F920.
+
+Both dispatchers also implement a handler ABI that a table repoint alone does
+not satisfy: R2 points at a one-byte completion status initialized to zero.
+Normal handlers that emit a reply store 2 through R2 before returning. The CAT
+ring consumer at 0xC0191564 advances past the command only when the dispatcher
+returns 2. The service `9R` handler emits its own reply but never touches R2,
+so pointing the table straight at `9R` leaves the input pending. Hardware
+testing of that first revision produced a correct immediate GM reply followed
+by a delayed duplicate in a later CAT exchange. The adapter in edit C retains
+R2 in callee-saved R4, calls `9R`, stores 2, and returns.
+
+WHY THE EXISTING GM SLOT AND HANDLER ARE REUSED
+
+The table base is formed by `ADR R0, table` (`ADD R0, PC, #imm`) at both
+0xC002E0DC and 0xC002E198, which is why no 32-bit literal for 0xC002E1E8
+appears anywhere in the image and a byte search for one finds nothing. `ADR`
+reaches at most PC plus 1020 bytes. Code sits flush against both ends of the
+table: 0xC002E3A8, immediately after the last entry, is the `AI` handler's
+`PUSH {R4-R7,LR}` prologue. The table can therefore be neither extended in
+place nor relocated to distant free space without converting both references
+to literal-pool loads. This patch leaves the stock GM table word, mnemonic, and
+padding untouched and reuses the handler it already names.
+
+The entry count bound is `CMP R4, #0x38` (`38 2C`) at flat offset 0x2E192.
+This patch leaves it alone; the table still holds exactly 56 entries.
+
+WHY `GM` IS REPURPOSED
+
+`GM`'s documented function reboots the radio into GPS-only mode, which is
+already classified as dangerous and is never wanted. Losing it is the entire
+user-visible cost, and a stock reflash restores it.
+
+The service mnemonics `0G`, `9R`, `9E`, and `2V` are deliberately NOT used.
+They are quarantined out of the shared CAT codec on purpose in the sibling
+Kenwood library, which asserts that each returns an unknown-command error. One
+host library talks to both stock and modified radios, so parsing service
+replies risks misreading a genuine service response from a stock radio. `BE` is
+excluded separately because its purpose is unresolved, and sacrificing it would
+destroy evidence about an unexplained command.
+
+THE THREE EDITS
+
+Flat-image offset N is runtime address 0xC0000000 + N and flash address
+0x00200000 + N.
+
+  A. flat 0x6F85C, four-byte window, three bytes change:
+
+       before  A0 26 F6 02    movs r6,#0xA0 ; lsls r6,r6,#11   -> 0x50000
+       after   80 26 76 04    movs r6,#0x80 ; lsls r6,r6,#17   -> 0x1000000
+
+     0x1000000 matches the request grammar exactly: six hexadecimal offset
+     digits reach 0xFFFFFF, and the handler rejects unless
+     `offset + length - 1 < bound`. So the whole addressable window becomes
+     readable and nothing beyond it does. The same constant serves both the
+     offset check and the offset-plus-length check.
+
+  B. flat 0x6F8A0, sixteen-byte window, all sixteen bytes change:
+
+       before  02 AA 09 04 09 0C 01 98 A1 F7 B2 FE 01 28 05 D1
+       after   60 26 36 06 01 99 89 19 02 A8 00 9A A1 F7 8D FD
+
+     The replacement decodes as:
+
+       movs r6,#0x60
+       lsls r6,r6,#24        ; r6 = 0x60000000
+       ldr  r1,[sp,#4]       ; r1 = requested offset
+       adds r1,r1,r6         ; r1 = 0x60000000 + offset   (source)
+       add  r0,sp,#8         ; r0 = reply buffer          (destination)
+       ldr  r2,[sp,#0]       ; r2 = length
+       bl   0xC00113CA       ; memcpy(dst, src, len)
+
+     The `BL` encoding `A1 F7 8D FD` at flat 0x6F8AC resolves to 0xC00113CA,
+     the same memcpy the reply builder at 0xC006EE66 calls as
+     `memcpy(reply, request, 10)`, which establishes the (dst, src, len)
+     argument order used above.
+
+     The bypass is necessary rather than cosmetic. Stock routes the read
+     through the wrapper at 0xC0011610, which forwards to
+     `0xC001E864(0, offset, len, dest)`, an abstracted bank-0 read rather than
+     a raw memory copy. Reading raw CPU addresses requires going around it.
+
+     The stock `cmp r0,#1 / bne` that tested the wrapper's return value is
+     consumed by this replacement. Execution falls straight into the unchanged
+     reply code at flat 0x6F8B0, which is correct because memcpy has no failure
+     return to test. Those twelve following bytes are pinned as context and are
+     not modified.
+
+  C. flat 0x2EC00, fourteen-byte window, twelve bytes change:
+
+       before  70 B5 06 00 0D 00 14 00 FB F7 52 FF 01 00
+       after   10 B5 14 00 40 F0 0F FE 02 20 20 70 10 BD
+
+     The replacement decodes as:
+
+       push {r4,lr}
+       movs r4,r2             ; retain normal dispatcher status pointer
+       bl   0xC006F826        ; parse request and emit the GM read reply
+       movs r0,#2
+       strb r0,[r4]           ; mark the command consumed
+       pop  {r4,pc}
+
+     The BL encoding is resolved at runtime address 0xC002EC04 and was
+     independently assembled for ARMv5 Thumb at that exact address. The
+     service handler preserves R4 and returns on every success/error path. The
+     push keeps SP eight-byte aligned across the call.
+
+     The dispatch table entry at flat 0x2E2C8 remains the stock
+     `01 EC 02 C0 47 4D 00 00`: Thumb handler 0xC002EC01, mnemonic `GM`,
+     and padding. Keeping the two-character mnemonic aligns the grammar: the
+     read handler requires a space at byte 2 and a comma at byte 9.
+
+     The service dispatcher also has a stock pointer to 0xC002EC01 at flat
+     0x6F374. It passes a valid R2 status pointer, so the adapter is memory-safe
+     there too, but this means `GM` is repurposed in both dispatcher contexts.
+     The actual service `9R` table entry remains unchanged.
+
+RESULTING WIRE PROTOCOL
+
+  request   GM OOOOOO,LL\\r        exactly 13 bytes, hexadecimal fields,
+                                  LL of 00 means 256 bytes
+  reply     GM OOOOOO,<hex>\\r     the request's first 10 bytes echoed, then
+                                  two uppercase hexadecimal characters per
+                                  byte, high nibble first, then CR
+
+Reply length is 10 + 2*len + 1. The reply builder clears a 523-byte buffer,
+which is exactly 10 + 512 + 1 and independently confirms two characters per
+byte for a full 256-byte read. The encoder adds 0x30 to a nibble below ten and
+0x37 otherwise, so 0xA becomes 'A': uppercase only.
+
+The echo means replies are self-identifying, and a host should confirm the
+echoed offset matches what it requested so a stale or mis-routed reply becomes
+an error rather than silently wrong data.
+
+CONSEQUENCES FOR HOST SOFTWARE
+
+On a patched radio the `GM` GPS-mode command no longer works, so any host
+binding for it stops functioning. In the sibling Kenwood Rust library the
+memory-read reply parser declines any payload not shaped like a memory-read
+reply and is ordered ahead of the GPS parser, so a stock radio's GPS-mode reply
+still parses correctly with the same build.
+
+WHY IT'S PROBABLY SAFE
+
+(1) Verify-then-write: the engine refuses to apply unless every `expect` byte
+    matches, and emits no output file on failure, so failure is atomic.
+
+(2) Length preserving: each edit rewrites existing bytes in place. No code is
+    inserted, no addresses shift, no relocations apply.
+
+(3) The patched bytes are at flash 0x0022EC00, 0x0026F85C, and 0x0026F8A0, far
+    from CHECKBYTES at flash 0x00200062 and FINAL_ZZZ at flash 0x00200040,
+    which this patch leaves untouched. Nothing below NOR 0x00200000 is
+    involved.
+
+(4) Intel HEX record checksums covering the patched bytes are recomputed by
+    `intel_hex.patch_image`, and the firmware block `$CA` checksum the radio
+    verifies during flash is recomputed by `kex.patch_kex`.
+
+(5) The command grammar exposes the first 16 MiB of the physical 32 MiB NOR,
+    but only the bounded low-NOR candidate window is in scope. The approved
+    host path therefore reads offsets 0x000000..0x1FFFFF and never probes or
+    sweeps the remaining 14 MiB.
+
+HARDWARE EVIDENCE AND NOR STATUS
+
+The sibling DDR patch's first, direct-table-repoint revision was flashed on
+real V1.03 hardware. Its reads and bounds checks worked, but later CAT traffic
+received a delayed duplicate GM reply. That observation exposed the missing
+completion-status write described above.
+
+The DDR adapter revision was then flashed with the native flasher on 2026-07-26
+and qualified after a full power-cycle. Its 1, 16, 64, and 256-byte reads,
+bounds handling, adapter, completion-status write, memcpy sequence, and
+duplicate-response checks all passed. This NOR variant preserves every one of
+those bytes except the single `movs r6,#0x60` base immediate at flat 0x6F8A0.
+
+The one-byte NOR retarget was hardware-qualified on 2026-07-26. After the
+native fast flash and a full power cycle, the literal first GM returned `60`;
+the full live adapter/base attestations passed; bounded 1-, 16-, 64-, and
+256-byte reads agreed; and offset 0x1FFFFF returned `FF`. Two complete 2 MiB
+passes then matched every 256-byte chunk and produced SHA-256
+`daaf1dbc4750fc200ee8cd33ae57b5c5923e0ea7c01697470efbf751aab47734`.
+D75 boot code proves the Boot Program slot is 0x000000-0x01FFFF and the FLDM
+loader slot is 0x020000-0x05FFFF.
+
+The qualification remains bounded. Apart from the exact base probe and four
+flashed-main attestation windows, no address above 0x1FFFFF may be requested.
+
+PROVENANCE
+
+Firmware-derived, checkable in the extracted V1.03 FIRMWARE section with any
+disassembler that decodes ARMv5TE Thumb:
+  - All three patched byte windows and their before/after values.
+  - cat_dispatch_normal (0xC002E154), its unconditional BLX (0xC002E1BE), its
+    count bound (0xC002E192), and its ADR references (0xC002E0DC, 0xC002E198).
+  - The second dispatcher (0xC002E088) and its entry gate (0xC002F920).
+  - The read handler (0xC006F826), its bound construction (0xC006F85C), its
+    hexadecimal parameter parser (0xC006DF38), the bank-0 read wrapper
+    (0xC0011610) and its target (0xC001E864).
+  - The reply builder (0xC006EE66), its uppercase hex encoder (0xC006EE20),
+    and memcpy (0xC00113CA).
+  - The original GM handler (0xC002EC00), including its R2 status-pointer
+    handling and status-2 query/error paths.
+  - The CAT ring consumer at 0xC0191564, including its status-2 comparison and
+    consume/advance path.
+  - The service dispatcher table's second GM pointer at 0xC006F374.
+  - Normal dispatch table layout at 0xC002E1E8: 56 entries of
+    [handler:u32-le][mnemonic:2][pad:2], with the GM entry left stock.
+
+External source, not derivable from the firmware section alone:
+  - That `GM` reboots the radio into GPS-only mode (CAT command documentation).
+  - The service-mnemonic quarantine policy, which lives in the sibling Kenwood
+    library's test suite.
+"""
+target_firmware = "TH-D75 V1.03 official FIRMWARE"
+
+# Fail closed on the complete source image and on every emitted artifact. These
+# were added only after the patched image was disassembled and confirmed to
+# decode as the description claims, and after a full byte diff against stock
+# showed exactly 31 differing bytes, all of them listed below.
+#
+# The patched-firmware hash was derived twice by independent routes, through
+# this library's own pipeline and by applying the change list to a separately
+# extracted flat image, and the two agree.
+source_sha256 = "193963ca4b7a38392815686893858eec20292b629fe999f10b93a22a3a8e4001"
+result_sha256 = "2eddf487e985861c95fb4212d0f7eabfb57c648eee06f3141819582226fd6ea0"
+result_kex_sha256 = "f619fbb6b6fd91ad5bcdaf85bcc3bcd31483564fc5a5643aad73ce5915f5f30e"
+
+# The repack route is narrower still: accept only the exact official updater,
+# then pin both the re-ciphered resource and the complete replacement EXE.
+source_updater_sha256 = "a76f0c80525c942c983bd62494109e15270380a6b5964d6c2a6b4726331f60ad"
+result_encrypted_resource_sha256 = "ff65c725b7f669ec829d85c2800c3e4317aac2dd4e7e71066a130991e919fdcd"
+result_updater_sha256 = "c14e68f6e70c31cc29761cbb70983becddb792899dfc17679c2778cf2a255544"
+
+change_count = 31
+
+# --- Context blocks: complete windows, including bytes that do not change. ---
+
+# Bound construction: movs r6,#0xA0 ; lsls r6,r6,#11
+[[contexts]]
+offset = 0x6F85C
+expect = "A0 26 F6 02"
+
+# The 16-byte read block, plus the 12 following bytes of reply code that must
+# remain untouched: ldr r2,[sp,#0] ; add r1,sp,#8 ; movs r0,r5 ; bl reply ; b end
+[[contexts]]
+offset = 0x6F8A0
+expect = "02 AA 09 04 09 0C 01 98 A1 F7 B2 FE 01 28 05 D1 00 9A 02 A9 28 00 FF F7 D6 FA 04 E0"
+
+# Normal dispatch table entry 28, including the mnemonic and padding, which are
+# deliberately not modified. This pins the adapter's only normal-mode caller.
+[[contexts]]
+offset = 0x2E2C8
+expect = "01 EC 02 C0 47 4D 00 00"
+
+# Stock GM handler prologue and first branch, including all 14 bytes replaced
+# by the adapter and the untouched grammar check that originally followed.
+[[contexts]]
+offset = 0x2EC00
+expect = "70 B5 06 00 0D 00 14 00 FB F7 52 FF 01 00 05 2D 09 D1 B0 78 20 28 06 D1 05 21 30 00 3F F0 0F FA"
+
+# The service dispatcher has a second stock GM entry. The adapter is reached
+# there as well; pin the preceding mnemonic, the full GM entry, and the next
+# handler word so a table-layout drift cannot silently broaden the change.
+[[contexts]]
+offset = 0x6F370
+expect = "42 4C 00 00 01 EC 02 C0 47 4D 00 00 45 F3 02 C0"
+
+# The adapter relies on 9R preserving R4. Pin its callee-saved prologue and
+# stack allocation, complementing the matching epilogue context below.
+[[contexts]]
+offset = 0x6F826
+expect = "70 B5 C2 B0 05 00 0E 00 80 24 64 00 22 00 00 21"
+
+# All 9R reply/error paths converge on this unchanged tail and epilogue. It
+# proves the adapter's BL always returns and that callee-saved R4 is restored.
+[[contexts]]
+offset = 0x6F8BC
+expect = "C0 F7 8A F8 01 E0 C0 F7 9F F8 42 B0 70 BD"
+
+# --- Group A: widen the accepted window to 0x1000000. ---
+
+[[changes]]
+offset = 0x6F85C
+expect = 0xA0
+value = 0x80
+
+[[changes]]
+offset = 0x6F85E
+expect = 0xF6
+value = 0x76
+
+[[changes]]
+offset = 0x6F85F
+expect = 0x02
+value = 0x04
+
+# --- Group B: read from 0x60000000 + offset with a plain memcpy. ---
+#
+# This immediate is the only byte that differs from normal-gm-ddr-read.
+# `movs r6,#0x60` then `lsls r6,r6,#24` yields 0x60000000, the CPU-visible
+# NOR window, so offset 0 is NOR 0x00000000 and the 2 MiB low-NOR candidate
+# window lands at offsets 0x000000-0x1FFFFF. The DDR variant writes 0xC0
+# here and reaches DDR instead, which cannot see that low-NOR window at all.
+
+[[changes]]
+offset = 0x6F8A0
+expect = 0x02
+value = 0x60
+
+[[changes]]
+offset = 0x6F8A1
+expect = 0xAA
+value = 0x26
+
+[[changes]]
+offset = 0x6F8A2
+expect = 0x09
+value = 0x36
+
+[[changes]]
+offset = 0x6F8A3
+expect = 0x04
+value = 0x06
+
+[[changes]]
+offset = 0x6F8A4
+expect = 0x09
+value = 0x01
+
+[[changes]]
+offset = 0x6F8A5
+expect = 0x0C
+value = 0x99
+
+[[changes]]
+offset = 0x6F8A6
+expect = 0x01
+value = 0x89
+
+[[changes]]
+offset = 0x6F8A7
+expect = 0x98
+value = 0x19
+
+[[changes]]
+offset = 0x6F8A8
+expect = 0xA1
+value = 0x02
+
+[[changes]]
+offset = 0x6F8A9
+expect = 0xF7
+value = 0xA8
+
+[[changes]]
+offset = 0x6F8AA
+expect = 0xB2
+value = 0x00
+
+[[changes]]
+offset = 0x6F8AB
+expect = 0xFE
+value = 0x9A
+
+[[changes]]
+offset = 0x6F8AC
+expect = 0x01
+value = 0xA1
+
+[[changes]]
+offset = 0x6F8AD
+expect = 0x28
+value = 0xF7
+
+[[changes]]
+offset = 0x6F8AE
+expect = 0x05
+value = 0x8D
+
+[[changes]]
+offset = 0x6F8AF
+expect = 0xD1
+value = 0xFD
+
+# --- Group C: adapt the existing GM handler to the normal dispatcher ABI. ---
+
+[[changes]]
+offset = 0x2EC00
+expect = 0x70
+value = 0x10
+
+[[changes]]
+offset = 0x2EC02
+expect = 0x06
+value = 0x14
+
+[[changes]]
+offset = 0x2EC04
+expect = 0x0D
+value = 0x40
+
+[[changes]]
+offset = 0x2EC05
+expect = 0x00
+value = 0xF0
+
+[[changes]]
+offset = 0x2EC06
+expect = 0x14
+value = 0x0F
+
+[[changes]]
+offset = 0x2EC07
+expect = 0x00
+value = 0xFE
+
+[[changes]]
+offset = 0x2EC08
+expect = 0xFB
+value = 0x02
+
+[[changes]]
+offset = 0x2EC09
+expect = 0xF7
+value = 0x20
+
+[[changes]]
+offset = 0x2EC0A
+expect = 0x52
+value = 0x20
+
+[[changes]]
+offset = 0x2EC0B
+expect = 0xFF
+value = 0x70
+
+[[changes]]
+offset = 0x2EC0C
+expect = 0x01
+value = 0x10
+
+[[changes]]
+offset = 0x2EC0D
+expect = 0x00
+value = 0xBD

@@ -36,8 +36,9 @@ filenames produced by ``thd75-extract`` (e.g.,
 # The updater stores section start addresses ($SA= metadata) as physical
 # addresses including this offset; subtracting it gives the flash-relative
 # offset used as a section's filename and as SectionInfo.flash_address.
-# (Not to be confused with DDR base 0xC0000000, where the runtime image
-# lives after the bootloader copies it from flash.)
+# (Not to be confused with DDR base 0xC0000000, the main flat image's
+# evidence-backed runtime analysis base. Exact D75 low-boot copy/entry
+# mechanics remain unconfirmed.)
 FLASH_BASE: FlashAddress = FlashAddress(0x6000_0000)
 
 
@@ -91,13 +92,17 @@ SECTIONS: tuple[SectionInfo, ...] = (
         name="CHECKBYTES",
         flash_address=FlashAddress(0x0020_0062),
         expected_size=2,
-        description="Bootloader integrity checksum (0xB01D in V1.03)",
+        description=(
+            "Stock V1.03 overlay bytes B0 1D; D75 early-boot meaning unconfirmed"
+        ),
     ),
     SectionInfo(
         name="FINAL_ZZZ",
         flash_address=FlashAddress(0x0020_0040),
         expected_size=32,
-        description="Build marker written last to confirm update completion",
+        description=(
+            "Stock 32-byte overlay written last; D75 early-boot meaning unconfirmed"
+        ),
     ),
 )
 

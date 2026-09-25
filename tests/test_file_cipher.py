@@ -22,8 +22,11 @@ if TYPE_CHECKING:
 
 
 class TestRollingKeyState:
-    """The rolling-key state's invariants: key in 0..255, advance wraps,
-    construction validates inputs."""
+    """The rolling-key state's invariants.
+
+    The key stays in 0..255, ``advance`` wraps, and construction validates
+    its inputs.
+    """
 
     def test_initial_value(self) -> None:
         state = RollingKeyState()
@@ -46,19 +49,21 @@ class TestRollingKeyState:
         # than silently masking with & 0xFF (which would turn key=300 into
         # key=44, a footgun for the worst possible failure mode).
         with pytest.raises(ValueError, match=r"key must be 0\.\.255"):
-            RollingKeyState(key=300)
+            _ = RollingKeyState(key=300)
         with pytest.raises(ValueError, match=r"key must be 0\.\.255"):
-            RollingKeyState(key=-1)
+            _ = RollingKeyState(key=-1)
 
     def test_rejects_out_of_range_step(self) -> None:
         with pytest.raises(ValueError, match=r"step must be 0\.\.255"):
-            RollingKeyState(step=256)
+            _ = RollingKeyState(step=256)
 
 
 class TestDecryptLine:
-    """Single-line decryption: type-marker dispatch, state advancement
-    per pair, and strict rejection of malformed input that would otherwise
-    desync the rolling key."""
+    """Single-line decryption.
+
+    Covers type-marker dispatch, state advancement per pair, and strict
+    rejection of malformed input that would otherwise desync the rolling key.
+    """
 
     def test_empty_line(self) -> None:
         state = RollingKeyState()
@@ -85,9 +90,9 @@ class TestDecryptLine:
 
     def test_key_advances_across_calls(self) -> None:
         state = RollingKeyState(key=0, step=1)
-        decrypt_line("$AABB", state)
+        _ = decrypt_line("$AABB", state)
         key_after_first: int = state.key
-        decrypt_line("XCCDD", state)
+        _ = decrypt_line("XCCDD", state)
         assert state.key > key_after_first
 
     def test_odd_length_data_raises(self) -> None:
@@ -97,19 +102,22 @@ class TestDecryptLine:
         state = RollingKeyState()
         with pytest.raises(ValueError, match="odd-length"):
             # marker "D" + 3 chars of data "ABC" → odd
-            decrypt_line("DABC", state)
+            _ = decrypt_line("DABC", state)
 
     def test_non_hex_chars_raise(self) -> None:
         # Non-hex characters indicate stream corruption; raise rather
         # than silently truncating mid-line (which desyncs the key).
         state = RollingKeyState()
         with pytest.raises(ValueError, match="Non-hex"):
-            decrypt_line("DAAZZ", state)
+            _ = decrypt_line("DAAZZ", state)
 
 
 class TestDecryptResource:
-    """Whole-resource decryption: dataclass shape, empty input handling,
-    and corruption propagation."""
+    """Whole-resource decryption.
+
+    Covers the dataclass shape, empty-input handling, and corruption
+    propagation.
+    """
 
     def test_returns_dataclass(self) -> None:
         # Both lines are well-formed: $AABB (metadata, 2 pairs) and
@@ -127,31 +135,36 @@ class TestDecryptResource:
         # Cipher stream corruption inside decrypt_resource must not
         # be silently swallowed — fail loud or risk silent corruption
         # of every subsequent line via a desynced rolling key.
-        with pytest.raises(ValueError):
-            decrypt_resource("$AABB\nDABZZ\n")
+        with pytest.raises(ValueError, match="Non-hex characters"):
+            _ = decrypt_resource("$AABB\nDABZZ\n")
 
 
 class TestMultiBlockContinuity:
-    """Pin the multi-block boundary in ``decrypt_resource`` and the
-    rolling key's continuity across blocks. The previous test suite
-    only exercised single-block resources, so a regression that
-    duplicated/dropped blocks at the boundary or reset the key on a
-    new ``$`` line would have passed unnoticed."""
+    """Pin the multi-block boundary and the rolling key's cross-block continuity.
+
+    The previous test suite only exercised single-block resources in
+    ``decrypt_resource``, so a regression that duplicated or dropped blocks at
+    the boundary, or reset the key on a new ``$`` line, would have passed
+    unnoticed.
+    """
 
     def test_two_blocks_round_trip(
-        self, encrypt_resource: EncryptResource,
+        self,
+        encrypt_resource: EncryptResource,
     ) -> None:
         # Encrypt two distinct blocks with the canonical encoder,
         # then decrypt and check both blocks come back intact AND in order.
         meta_a = b"$SA=0x60200000"
         data_a = b"\x11\x22\x33\x44"
         meta_b = b"$SA=0x60E00000"
-        data_b = b"\xAA\xBB\xCC\xDD\xEE\xFF"
+        data_b = b"\xaa\xbb\xcc\xdd\xee\xff"
 
-        encrypted = encrypt_resource([
-            (meta_a, [data_a]),
-            (meta_b, [data_b]),
-        ])
+        encrypted = encrypt_resource(
+            [
+                (meta_a, [data_a]),
+                (meta_b, [data_b]),
+            ]
+        )
         result = decrypt_resource(encrypted)
 
         assert len(result.blocks) == 2
@@ -162,7 +175,8 @@ class TestMultiBlockContinuity:
         assert result.blocks[1].metadata == ("$SA=0x60E00000",)
 
     def test_rolling_key_continuous_across_blocks(
-        self, encrypt_resource: EncryptResource,
+        self,
+        encrypt_resource: EncryptResource,
     ) -> None:
         # The cipher's documented invariant: the rolling key is
         # continuous across all lines, including the $-prefixed boundary
@@ -172,30 +186,37 @@ class TestMultiBlockContinuity:
         # different bytes because the rolling key has advanced.
         # Decryption must produce identical plaintext for both.
         plaintext = b"REPEATME"
-        encrypted = encrypt_resource([
-            (b"$M1", [plaintext]),
-            (b"$M2", [plaintext]),
-        ])
+        encrypted = encrypt_resource(
+            [
+                (b"$M1", [plaintext]),
+                (b"$M2", [plaintext]),
+            ]
+        )
         result = decrypt_resource(encrypted)
         assert result.blocks[0].data == plaintext
         assert result.blocks[1].data == plaintext
 
     def test_concatenated_data_property(
-        self, encrypt_resource: EncryptResource,
+        self,
+        encrypt_resource: EncryptResource,
     ) -> None:
         # DecryptedResource.data should concat all blocks' data in order.
-        encrypted = encrypt_resource([
-            (b"$A", [b"\x01\x02"]),
-            (b"$B", [b"\x03\x04"]),
-            (b"$C", [b"\x05\x06"]),
-        ])
+        encrypted = encrypt_resource(
+            [
+                (b"$A", [b"\x01\x02"]),
+                (b"$B", [b"\x03\x04"]),
+                (b"$C", [b"\x05\x06"]),
+            ]
+        )
         result = decrypt_resource(encrypted)
         assert result.data == b"\x01\x02\x03\x04\x05\x06"
 
 
 class TestEncryptLine:
-    """``encrypt_line`` is the exact inverse of ``decrypt_line`` — needed
-    to re-cipher a patched resource when repacking the updater."""
+    """``encrypt_line`` is the exact inverse of ``decrypt_line``.
+
+    It is needed to re-cipher a patched resource when repacking the updater.
+    """
 
     def test_round_trip_recovers_plaintext(self) -> None:
         encrypted = encrypt_line(b"$SA=0x60200000", "$", RollingKeyState())
@@ -212,7 +233,7 @@ class TestEncryptLine:
 
     def test_advances_state_one_step_per_byte(self) -> None:
         state = RollingKeyState(key=0, step=1)
-        encrypt_line(b"\xAA\xBB\xCC", "D", state)
+        _ = encrypt_line(b"\xaa\xbb\xcc", "D", state)
         assert state.key == 3
 
     def test_marker_only_line_has_no_pairs(self) -> None:

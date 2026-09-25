@@ -8,16 +8,16 @@ completely independent of the file-storage cipher.
 
 Encrypt (per byte)::
 
-    index       = (key + plaintext) & 0xFF
+    index = (key + plaintext) & 0xFF
     substituted = SUBST_TABLE[index]
-    xored       = substituted ^ key
-    ciphertext  = ROL3(xored)
+    xored = substituted ^ key
+    ciphertext = ROL3(xored)
 
 Decrypt (per byte)::
 
-    rotated   = ROR3(ciphertext)
-    xored     = rotated ^ key
-    index     = REVERSE_TABLE[xored]
+    rotated = ROR3(ciphertext)
+    xored = rotated ^ key
+    index = REVERSE_TABLE[xored]
     plaintext = (index - key) & 0xFF
 
 The key is set to ``0x75`` during the firmware update handshake.
@@ -27,6 +27,7 @@ A key of ``0x00`` disables encryption (passthrough).
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Final
 
 __all__: list[str] = [
     "DEFAULT_KEY",
@@ -59,6 +60,12 @@ _SUBST_TABLE: bytes = bytes([
 
 DEFAULT_KEY: int = 0x75
 
+_TABLE_SIZE: Final[int] = 256
+"""Entries in a substitution table: one per single-byte value."""
+
+_KEY_MAX: Final[int] = 0xFF
+"""Largest key: the key is a single byte."""
+
 
 @dataclass(frozen=True, slots=True)
 class SubstitutionTable:
@@ -70,10 +77,10 @@ class SubstitutionTable:
     @classmethod
     def from_bytes(cls, table: bytes) -> SubstitutionTable:
         """Build a ``SubstitutionTable`` from a 256-byte permutation."""
-        if len(table) != 256 or sorted(table) != list(range(256)):
+        if len(table) != _TABLE_SIZE or sorted(table) != list(range(_TABLE_SIZE)):
             msg = "Table must be a 256-byte permutation (each value 0-255 exactly once)"
             raise ValueError(msg)
-        rev: list[int] = [0] * 256
+        rev: list[int] = [0] * _TABLE_SIZE
         for idx, val in enumerate(table):
             rev[val] = idx
         return cls(forward=table, reverse=tuple(rev))
@@ -110,7 +117,7 @@ def _validate_key(key: int) -> None:
     if type(key) is not int:
         msg = f"key must be an integer, got {type(key).__name__}"
         raise TypeError(msg)
-    if not 0 <= key <= 0xFF:
+    if not 0 <= key <= _KEY_MAX:
         msg = f"key must be 0..255, got {key}"
         raise ValueError(msg)
 
@@ -128,6 +135,7 @@ def encrypt(data: bytes | bytearray, key: int = DEFAULT_KEY) -> bytes:
     Raises:
         TypeError: if ``key`` is not an integer (or is a bool).
         ValueError: if ``key`` is outside the 0..255 single-byte range.
+
     """
     _validate_key(key)
     if key == 0:
@@ -153,6 +161,7 @@ def decrypt(data: bytes | bytearray, key: int = DEFAULT_KEY) -> bytes:
     Raises:
         TypeError: if ``key`` is not an integer (or is a bool).
         ValueError: if ``key`` is outside the 0..255 single-byte range.
+
     """
     _validate_key(key)
     if key == 0:
@@ -171,11 +180,14 @@ def verify_round_trip(key: int = DEFAULT_KEY) -> None:
     Raises:
         AssertionError: If any byte fails the round-trip.
         TypeError, ValueError: see ``encrypt`` / ``decrypt``.
+
     """
     _validate_key(key)
     for b in range(256):
         plain = bytes([b])
         result: bytes = decrypt(encrypt(plain, key), key)
-        assert result == plain, (
-            f"Round-trip failed for 0x{b:02X} with key 0x{key:02X}"
-        )
+        # An explicit raise, not ``assert``: the self-test must still fail
+        # under ``python -O``, which strips assert statements.
+        if result != plain:
+            msg = f"Round-trip failed for 0x{b:02X} with key 0x{key:02X}"
+            raise AssertionError(msg)

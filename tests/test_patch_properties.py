@@ -23,6 +23,7 @@ the checksum recomputation.
 
 from __future__ import annotations
 
+import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
@@ -58,10 +59,12 @@ _IMAGE_BYTES = st.binary(min_size=1, max_size=32)
 
 @st.composite
 def _image_and_changes(draw: st.DrawFn) -> tuple[bytes, list[ByteChange]]:
-    """Generate ``(image, changes)`` where every change is in-range and
-    uses the current image byte as ``expect`` (so the engine accepts
-    the patch) and a *different* byte as ``value`` (the no-op guard
-    rejects ``expect == value``)."""
+    """Generate ``(image, changes)`` with every change in range and accepted.
+
+    Each change uses the current image byte as ``expect`` (so the engine
+    accepts the patch) and a *different* byte as ``value`` (the no-op guard
+    rejects ``expect == value``).
+    """
     image = draw(_IMAGE_BYTES)
     # Choose a unique-offset subset of indices to patch.
     indices = draw(
@@ -81,9 +84,7 @@ def _image_and_changes(draw: st.DrawFn) -> tuple[bytes, list[ByteChange]]:
         # loop-variable lambda.
         candidates = [v for v in range(256) if v != current]
         new_value = draw(st.sampled_from(candidates))
-        changes.append(
-            ByteChange(offset=offset, expect=current, value=new_value)
-        )
+        changes.append(ByteChange(offset=offset, expect=current, value=new_value))
     return image, changes
 
 
@@ -145,13 +146,13 @@ def test_double_apply_trips_verification(
     # The second application sees the patched bytes as ``actual`` but
     # the patch declares the *original* bytes as ``expect`` — they
     # disagree by construction, so the engine must abort.
-    import pytest
-
     with pytest.raises(PatchVerificationError):
-        patch_image(once, changes)
+        _ = patch_image(once, changes)
 
 
 def test_intel_hex_module_re_export() -> None:
-    """``thd75_fw.intel_hex`` is re-exported on the package; make sure
-    the public name is reachable via both paths."""
+    """``thd75_fw.intel_hex`` is re-exported on the package.
+
+    Make sure the public name is reachable via both paths.
+    """
     assert intel_hex.patch_image is patch_image

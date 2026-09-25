@@ -7,7 +7,7 @@ needed.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 import pytest
 
@@ -15,6 +15,54 @@ from thd75_fw.file_cipher import RollingKeyState
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from _pytest.config import Config
+    from _pytest.config.argparsing import Parser
+    from _pytest.nodes import Item
+
+
+class IntelHexRecordBuilder(Protocol):
+    """Call signature of the builder the ``intel_hex_record`` fixture returns."""
+
+    def __call__(
+        self,
+        byte_count: int,
+        addr: int,
+        rec_type: int,
+        data: bytes = b"",
+        checksum: int | None = None,
+    ) -> bytes:
+        """Return one packed record; ``checksum=None`` computes a valid one."""
+        ...
+
+
+# ── Opt-in slow tests ───────────────────────────────────────────────
+#
+# One test drives the complete ~15.3 MB stock package through the flash
+# session. It is worth running deliberately — it is the only end-to-end
+# check against the real artifact — but it costs seconds of host CPU per
+# run, so it stays out of the default suite behind ``--run-slow``.
+
+
+def pytest_addoption(parser: Parser) -> None:
+    """Register ``--run-slow``, which un-skips the ``slow`` marker."""
+    parser.addoption(
+        "--run-slow",
+        action="store_true",
+        default=False,
+        help="also run tests marked slow (the full-image flash integration)",
+    )
+
+
+def pytest_collection_modifyitems(config: Config, items: list[Item]) -> None:
+    """Skip ``slow``-marked tests unless ``--run-slow`` was passed."""
+    if config.getoption("--run-slow"):
+        return
+    skip_slow = pytest.mark.skip(reason="needs --run-slow")
+    for item in items:
+        if "slow" in item.keywords:
+            item.add_marker(skip_slow)
+
 
 # ── Cipher encoder helpers ──────────────────────────────────────────
 #
@@ -34,13 +82,15 @@ def encrypt_line() -> Callable[[bytes, str, RollingKeyState], str]:
     Algorithm (inverse of the documented decrypt loop)::
 
         xored = (plaintext_byte + rolling_key) & 0xFF
-        raw_byte = xored ^ ((1-based-index & 1) * 0xFF)
+        raw_byte = xored ^ ((1 - based - index & 1) * 0xFF)
         emit = f"{raw_byte:02X}"
         rolling_key = (rolling_key + step) & 0xFF
     """
 
     def _encrypt_line(
-        plaintext: bytes, prefix: str, state: RollingKeyState,
+        plaintext: bytes,
+        prefix: str,
+        state: RollingKeyState,
     ) -> str:
         pieces: list[str] = [prefix]
         for one_based_index, plaintext_byte in enumerate(plaintext, start=1):
@@ -57,7 +107,7 @@ def encrypt_line() -> Callable[[bytes, str, RollingKeyState], str]:
 def encrypt_resource(
     encrypt_line: Callable[[bytes, str, RollingKeyState], str],
 ) -> Callable[[list[tuple[bytes, list[bytes]]]], str]:
-    """Provide a function that builds a complete encrypted resource string.
+    r"""Provide a function that builds a complete encrypted resource string.
 
     Each input block is ``(metadata_bytes, [data_record_bytes_per_line, ...])``.
     The metadata line gets a ``$`` prefix; each data line gets ``D``.
@@ -72,15 +122,14 @@ def encrypt_resource(
         lines: list[str] = []
         for metadata_bytes, data_records in blocks:
             lines.append(encrypt_line(metadata_bytes, "$", state))
-            for record in data_records:
-                lines.append(encrypt_line(record, "D", state))
+            lines.extend(encrypt_line(record, "D", state) for record in data_records)
         return "\n".join(lines) + "\n"
 
     return _encrypt_resource
 
 
 @pytest.fixture
-def intel_hex_record() -> Callable[..., bytes]:
+def intel_hex_record() -> IntelHexRecordBuilder:
     """Provide a function that builds a single packed Intel HEX record.
 
     The TH-D75 firmware's records are this packed binary form, not the

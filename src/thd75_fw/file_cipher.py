@@ -5,10 +5,10 @@ Reverse-engineered from class ``j`` in THD75_Updater_E v1.03.000
 
 Algorithm (per hex pair at 1-based index ``i`` within a line)::
 
-    raw_byte     = int(hex_pair, 16)
-    xored        = raw_byte ^ ((i & 1) * 0xFF)
-    plaintext    = (xored - rolling_key) & 0xFF
-    rolling_key  = (rolling_key + step) & 0xFF
+    raw_byte = int(hex_pair, 16)
+    xored = raw_byte ^ ((i & 1) * 0xFF)
+    plaintext = (xored - rolling_key) & 0xFF
+    rolling_key = (rolling_key + step) & 0xFF
 
 The rolling key is *continuous* across all lines. Every line — data and
 metadata alike — advances the key. Initial values (from ``j.__init__``):
@@ -18,6 +18,7 @@ metadata alike — advances the key. Initial values (from ``j.__init__``):
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Final
 
 __all__: list[str] = [
     "DecryptedBlock",
@@ -30,6 +31,8 @@ __all__: list[str] = [
 
 _DEFAULT_KEY: int = 39
 _DEFAULT_STEP: int = 39
+_BYTE_VALUE_COUNT: Final[int] = 256
+"""Distinct single-byte values: ``key`` and ``step`` must lie in 0..255."""
 
 
 class RollingKeyState:
@@ -45,10 +48,24 @@ class RollingKeyState:
     __slots__ = ("_key", "_step")
 
     def __init__(self, key: int = _DEFAULT_KEY, step: int = _DEFAULT_STEP) -> None:
-        if not 0 <= key < 256:
-            raise ValueError(f"key must be 0..255, got {key}")
-        if not 0 <= step < 256:
-            raise ValueError(f"step must be 0..255, got {step}")
+        """Start a key stream at ``key``, advancing by ``step`` per byte.
+
+        Args:
+            key: Initial rolling key, 0..255 (the updater starts at 39).
+            step: Amount added to the key after each byte, 0..255 (the
+                updater uses 39).
+
+        Raises:
+            ValueError: if ``key`` or ``step`` is outside 0..255.
+
+        """
+        super().__init__()
+        if not 0 <= key < _BYTE_VALUE_COUNT:
+            msg = f"key must be 0..255, got {key}"
+            raise ValueError(msg)
+        if not 0 <= step < _BYTE_VALUE_COUNT:
+            msg = f"step must be 0..255, got {step}"
+            raise ValueError(msg)
         self._key: int = key
         self._step: int = step
 
@@ -84,6 +101,7 @@ def decrypt_line(line: str, state: RollingKeyState) -> tuple[str, bytes]:
             non-hex characters. Both indicate stream corruption;
             silently skipping would desync the rolling key for all
             subsequent lines.
+
     """
     if not line:
         return ("", b"")
@@ -94,10 +112,11 @@ def decrypt_line(line: str, state: RollingKeyState) -> tuple[str, bytes]:
         return (line_type, b"")
 
     if len(data_chars) % 2:
-        raise ValueError(
+        msg = (
             f"Encrypted line has odd-length data ({len(data_chars)} chars "
             f"after type marker): {line!r}"
         )
+        raise ValueError(msg)
 
     decrypted = bytearray()
     # Iterate over consecutive 2-char hex pairs in the line's data section
@@ -105,16 +124,18 @@ def decrypt_line(line: str, state: RollingKeyState) -> tuple[str, bytes]:
     # matches the original C# code's loop counter, used to alternate the
     # 0x00/0xFF inversion mask per pair.
     for pair_index, pair_start in enumerate(
-        range(1, len(line), 2), start=1,
+        range(1, len(line), 2),
+        start=1,
     ):
         hex_pair = line[pair_start : pair_start + 2]
         try:
             raw_byte: int = int(hex_pair, 16)
         except ValueError as exc:
-            raise ValueError(
+            msg = (
                 f"Non-hex characters at position {pair_start} in encrypted "
                 f"line: {hex_pair!r}"
-            ) from exc
+            )
+            raise ValueError(msg) from exc
 
         xored: int = raw_byte ^ ((pair_index & 1) * 0xFF)
         plaintext_byte: int = (xored - state.key) & 0xFF
@@ -140,6 +161,7 @@ def encrypt_line(plaintext: bytes, marker: str, state: RollingKeyState) -> str:
     Returns:
         The encrypted line: ``marker`` followed by two uppercase hex
         characters per plaintext byte.
+
     """
     pieces: list[str] = [marker]
     for one_based_index, plaintext_byte in enumerate(plaintext, start=1):
@@ -201,6 +223,7 @@ def decrypt_resource(resource_text: str) -> DecryptedResource:
 
     Returns:
         A ``DecryptedResource`` with per-block data and metadata.
+
     """
     state = RollingKeyState()
     blocks: list[DecryptedBlock] = []
@@ -219,10 +242,12 @@ def decrypt_resource(resource_text: str) -> DecryptedResource:
             # accumulated data for the previous block, finalize it before
             # starting fresh accumulators for the new block.
             if pending_data:
-                blocks.append(DecryptedBlock(
-                    data=bytes(pending_data),
-                    metadata=tuple(pending_metadata),
-                ))
+                blocks.append(
+                    DecryptedBlock(
+                        data=bytes(pending_data),
+                        metadata=tuple(pending_metadata),
+                    )
+                )
                 pending_metadata = []
                 pending_data = bytearray()
             pending_metadata.append(line_bytes.decode("ascii", errors="replace"))
@@ -231,9 +256,11 @@ def decrypt_resource(resource_text: str) -> DecryptedResource:
 
     # Finalize the last block (no trailing $ line follows it).
     if pending_data:
-        blocks.append(DecryptedBlock(
-            data=bytes(pending_data),
-            metadata=tuple(pending_metadata),
-        ))
+        blocks.append(
+            DecryptedBlock(
+                data=bytes(pending_data),
+                metadata=tuple(pending_metadata),
+            )
+        )
 
     return DecryptedResource(blocks=tuple(blocks))

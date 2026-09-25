@@ -1,0 +1,6489 @@
+name = "normal-gm-nor-read-usb-recover-azimuth"
+description = """
+Closed-loop TH-D75 V1.03.AZM Azimuth automation overlay for the exact
+hash-pinned V1.03 USB-storage recovery firmware. It preserves
+ordinary GM DDR reads and GW 2 USB-storage recovery, adds bounded
+stock key-dispatch commands, including ABI-3 guarded-key and guarded
+three-decimal-digit route operations. A route samples the complete live
+LCD once, compares it with the authenticated stable top-level Menu
+snapshot, then synchronously dispatches all three digits with no host
+turn. The sole guard precedes every route input because the stock radio
+legitimately redraws numeric-entry state after digit one. A preemptive
+display writer remains a documented TOCTOU boundary. It publishes only double-copied,
+byte-identical 240x180 RGB565 LCD snapshots through attested raw and
+bounded RLE virtual GM apertures. Metadata is seqlocked and carries a
+generation number plus raw CRC-32. Invalid commands, unstable captures,
+RLE overflow, missing snapshots, and changed guard context fail closed.
+The exact ABI query seqlocks and invalidates any prior guarded-input
+snapshot lease before replying, without dispatching input.
+Its exact 16-byte payload identity is V1.03.AZM plus six spaces and NUL;
+the updater's stock V1.03 compatibility metadata remains unchanged.
+A route refusal therefore authenticates an empty prefix; success
+authenticates all six press/release events. RLE overflow retains an
+explicit raw path.
+"""
+target_firmware = "TH-D75 V1.03 pinned USB-storage recovery FIRMWARE"
+
+source_sha256 = "239128bca8f608398dc23865c336bd48a00484ea598202a000fd9f5647aa92a6"
+result_sha256 = "e4ee2338b0483acfc4fea2d7cb7805aacf1fdfe2102b2f2252d19e750dfc1c29"
+result_kex_sha256 = "6566a986c612204c7c248895d4719af569a9566db1f72dc0d086a021bb1a152d"
+source_updater_sha256 = "28e9ae17ab85e7831d04bb7a520e9e735081ea78c22e64e57daafa50f7bce23d"
+result_encrypted_resource_sha256 = "3f867a3e00b5f4b24bc6e2ffef117f7a6845e0e1c73aabf2a1b2fe7b1738cb36"
+result_updater_sha256 = "14353287f3d56b1829b00f6d0877e5f0915440ba2657f9fa886ed64d05d7a2e4"
+change_count = 1267
+
+[[contexts]]
+offset = 0x80
+expect = """
+45 58 2D 35 32 31 30 20 46 69 72 6D 77 61 72 65
+00 FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+56 31 2E 30 33 2E 30 30 30 20 20 20 20 20 20 00
+00 FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+00 00 20 60 00 00 00 61 00 00 00 C0 00 00 50 00
+"""
+
+[[contexts]]
+offset = 0x2EBE0
+expect = """
+3F F0 2D FA 01 20 30 70 70 BD 02 24 03 2D 03 D1
+00 F0 CF FC 34 70 70 BD 00 F0 04 FF 34 70 70 BD
+10 B5 14 00 40 F0 0F FE 02 20 20 70 10 BD 38 B5
+15 00 02 24 05 29 0B D1 83 78 20 2B 08 D1 C3 78
+32 2B 05 D1 03 79 0D 2B 02 D1 02 20 20 F0 14 FD
+"""
+
+[[contexts]]
+offset = 0x6F880
+expect = """
+02 D3 C0 F7 A7 F8 1E E0 00 28 00 D1 00 94 01 98
+00 99 40 18 40 1E B0 42 02 D3 C0 F7 9B F8 12 E0
+C0 26 36 06 01 99 89 19 02 A8 00 9A A1 F7 8D FD
+00 9A 02 A9 28 00 FF F7 D6 FA 04 E0 C0 F7 8A F8
+01 E0 C0 F7 9F F8 42 B0 70 BD 1C B5 0C 00 04 22
+"""
+
+[[contexts]]
+offset = 0x19D260
+expect = """
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF
+"""
+
+[[changes]]
+offset = 0xA6
+expect = 0x30
+value = 0x41
+
+[[changes]]
+offset = 0xA7
+expect = 0x30
+value = 0x5A
+
+[[changes]]
+offset = 0xA8
+expect = 0x30
+value = 0x4D
+
+[[changes]]
+offset = 0x2EC04
+expect = 0x40
+value = 0x6E
+
+[[changes]]
+offset = 0x2EC05
+expect = 0xF0
+value = 0xF1
+
+[[changes]]
+offset = 0x2EC06
+expect = 0x0F
+value = 0x3C
+
+[[changes]]
+offset = 0x2EC07
+expect = 0xFE
+value = 0xFB
+
+[[changes]]
+offset = 0x6F8AC
+expect = 0xA1
+value = 0x2D
+
+[[changes]]
+offset = 0x6F8AD
+expect = 0xF7
+value = 0xF1
+
+[[changes]]
+offset = 0x6F8AE
+expect = 0x8D
+value = 0x1F
+
+[[changes]]
+offset = 0x6F8AF
+expect = 0xFD
+value = 0xFF
+
+[[changes]]
+offset = 0x19D280
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D281
+expect = 0xFF
+value = 0xB5
+
+[[changes]]
+offset = 0x19D282
+expect = 0xFF
+value = 0x84
+
+[[changes]]
+offset = 0x19D283
+expect = 0xFF
+value = 0xB0
+
+[[changes]]
+offset = 0x19D284
+expect = 0xFF
+value = 0x04
+
+[[changes]]
+offset = 0x19D285
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D286
+expect = 0xFF
+value = 0x0D
+
+[[changes]]
+offset = 0x19D287
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D288
+expect = 0xFF
+value = 0x0D
+
+[[changes]]
+offset = 0x19D289
+expect = 0xFF
+value = 0x2D
+
+[[changes]]
+offset = 0x19D28A
+expect = 0xFF
+value = 0x14
+
+[[changes]]
+offset = 0x19D28B
+expect = 0xFF
+value = 0xD0
+
+[[changes]]
+offset = 0x19D28C
+expect = 0xFF
+value = 0x0B
+
+[[changes]]
+offset = 0x19D28D
+expect = 0xFF
+value = 0x2D
+
+[[changes]]
+offset = 0x19D28E
+expect = 0xFF
+value = 0x11
+
+[[changes]]
+offset = 0x19D28F
+expect = 0xFF
+value = 0xD1
+
+[[changes]]
+offset = 0x19D290
+expect = 0xFF
+value = 0xA0
+
+[[changes]]
+offset = 0x19D291
+expect = 0xFF
+value = 0x78
+
+[[changes]]
+offset = 0x19D292
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D293
+expect = 0xFF
+value = 0x28
+
+[[changes]]
+offset = 0x19D294
+expect = 0xFF
+value = 0x0E
+
+[[changes]]
+offset = 0x19D295
+expect = 0xFF
+value = 0xD1
+
+[[changes]]
+offset = 0x19D296
+expect = 0xFF
+value = 0xA0
+
+[[changes]]
+offset = 0x19D297
+expect = 0xFF
+value = 0x7A
+
+[[changes]]
+offset = 0x19D298
+expect = 0xFF
+value = 0x0D
+
+[[changes]]
+offset = 0x19D299
+expect = 0xFF
+value = 0x28
+
+[[changes]]
+offset = 0x19D29A
+expect = 0xFF
+value = 0x0B
+
+[[changes]]
+offset = 0x19D29B
+expect = 0xFF
+value = 0xD1
+
+[[changes]]
+offset = 0x19D29C
+expect = 0xFF
+value = 0xE0
+
+[[changes]]
+offset = 0x19D29D
+expect = 0xFF
+value = 0x78
+
+[[changes]]
+offset = 0x19D29E
+expect = 0xFF
+value = 0x41
+
+[[changes]]
+offset = 0x19D29F
+expect = 0xFF
+value = 0x28
+
+[[changes]]
+offset = 0x19D2A0
+expect = 0xFF
+value = 0x0E
+
+[[changes]]
+offset = 0x19D2A1
+expect = 0xFF
+value = 0xD0
+
+[[changes]]
+offset = 0x19D2A2
+expect = 0xFF
+value = 0x53
+
+[[changes]]
+offset = 0x19D2A3
+expect = 0xFF
+value = 0x28
+
+[[changes]]
+offset = 0x19D2A4
+expect = 0xFF
+value = 0x1B
+
+[[changes]]
+offset = 0x19D2A5
+expect = 0xFF
+value = 0xD0
+
+[[changes]]
+offset = 0x19D2A6
+expect = 0xFF
+value = 0x4B
+
+[[changes]]
+offset = 0x19D2A7
+expect = 0xFF
+value = 0x28
+
+[[changes]]
+offset = 0x19D2A8
+expect = 0xFF
+value = 0x2D
+
+[[changes]]
+offset = 0x19D2A9
+expect = 0xFF
+value = 0xD0
+
+[[changes]]
+offset = 0x19D2AA
+expect = 0xFF
+value = 0x47
+
+[[changes]]
+offset = 0x19D2AB
+expect = 0xFF
+value = 0x28
+
+[[changes]]
+offset = 0x19D2AC
+expect = 0xFF
+value = 0x2E
+
+[[changes]]
+offset = 0x19D2AD
+expect = 0xFF
+value = 0xD0
+
+[[changes]]
+offset = 0x19D2AE
+expect = 0xFF
+value = 0x52
+
+[[changes]]
+offset = 0x19D2AF
+expect = 0xFF
+value = 0x28
+
+[[changes]]
+offset = 0x19D2B0
+expect = 0xFF
+value = 0x5E
+
+[[changes]]
+offset = 0x19D2B1
+expect = 0xFF
+value = 0xD0
+
+[[changes]]
+offset = 0x19D2B2
+expect = 0xFF
+value = 0x88
+
+[[changes]]
+offset = 0x19D2B3
+expect = 0xFF
+value = 0xE0
+
+[[changes]]
+offset = 0x19D2B4
+expect = 0xFF
+value = 0x87
+
+[[changes]]
+offset = 0x19D2B5
+expect = 0xFF
+value = 0xE0
+
+[[changes]]
+offset = 0x19D2B6
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D2B7
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D2B8
+expect = 0xFF
+value = 0x29
+
+[[changes]]
+offset = 0x19D2B9
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D2BA
+expect = 0xFF
+value = 0xD2
+
+[[changes]]
+offset = 0x19D2BB
+expect = 0xFF
+value = 0xF6
+
+[[changes]]
+offset = 0x19D2BC
+expect = 0xFF
+value = 0xB4
+
+[[changes]]
+offset = 0x19D2BD
+expect = 0xFF
+value = 0xFA
+
+[[changes]]
+offset = 0x19D2BE
+expect = 0xFF
+value = 0x84
+
+[[changes]]
+offset = 0x19D2BF
+expect = 0xFF
+value = 0xE0
+
+[[changes]]
+offset = 0x19D2C0
+expect = 0xFF
+value = 0x04
+
+[[changes]]
+offset = 0x19D2C1
+expect = 0xFF
+value = 0x21
+
+[[changes]]
+offset = 0x19D2C2
+expect = 0xFF
+value = 0x60
+
+[[changes]]
+offset = 0x19D2C3
+expect = 0xFF
+value = 0x5C
+
+[[changes]]
+offset = 0x19D2C4
+expect = 0xFF
+value = 0x30
+
+[[changes]]
+offset = 0x19D2C5
+expect = 0xFF
+value = 0x28
+
+[[changes]]
+offset = 0x19D2C6
+expect = 0xFF
+value = 0x7E
+
+[[changes]]
+offset = 0x19D2C7
+expect = 0xFF
+value = 0xD1
+
+[[changes]]
+offset = 0x19D2C8
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D2C9
+expect = 0xFF
+value = 0x31
+
+[[changes]]
+offset = 0x19D2CA
+expect = 0xFF
+value = 0x0A
+
+[[changes]]
+offset = 0x19D2CB
+expect = 0xFF
+value = 0x29
+
+[[changes]]
+offset = 0x19D2CC
+expect = 0xFF
+value = 0xF9
+
+[[changes]]
+offset = 0x19D2CD
+expect = 0xFF
+value = 0xD1
+
+[[changes]]
+offset = 0x19D2CE
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D2CF
+expect = 0xFF
+value = 0xF0
+
+[[changes]]
+offset = 0x19D2D0
+expect = 0xFF
+value = 0xE0
+
+[[changes]]
+offset = 0x19D2D1
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D2D2
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D2D3
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D2D4
+expect = 0xFF
+value = 0x3E
+
+[[changes]]
+offset = 0x19D2D5
+expect = 0xFF
+value = 0xA1
+
+[[changes]]
+offset = 0x19D2D6
+expect = 0xFF
+value = 0x08
+
+[[changes]]
+offset = 0x19D2D7
+expect = 0xFF
+value = 0x22
+
+[[changes]]
+offset = 0x19D2D8
+expect = 0xFF
+value = 0xD1
+
+[[changes]]
+offset = 0x19D2D9
+expect = 0xFF
+value = 0xF6
+
+[[changes]]
+offset = 0x19D2DA
+expect = 0xFF
+value = 0xC5
+
+[[changes]]
+offset = 0x19D2DB
+expect = 0xFF
+value = 0xFD
+
+[[changes]]
+offset = 0x19D2DC
+expect = 0xFF
+value = 0x75
+
+[[changes]]
+offset = 0x19D2DD
+expect = 0xFF
+value = 0xE0
+
+[[changes]]
+offset = 0x19D2DE
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D2DF
+expect = 0xFF
+value = 0xA8
+
+[[changes]]
+offset = 0x19D2E0
+expect = 0xFF
+value = 0x21
+
+[[changes]]
+offset = 0x19D2E1
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D2E2
+expect = 0xFF
+value = 0x04
+
+[[changes]]
+offset = 0x19D2E3
+expect = 0xFF
+value = 0x31
+
+[[changes]]
+offset = 0x19D2E4
+expect = 0xFF
+value = 0x06
+
+[[changes]]
+offset = 0x19D2E5
+expect = 0xFF
+value = 0x22
+
+[[changes]]
+offset = 0x19D2E6
+expect = 0xFF
+value = 0xD0
+
+[[changes]]
+offset = 0x19D2E7
+expect = 0xFF
+value = 0xF6
+
+[[changes]]
+offset = 0x19D2E8
+expect = 0xFF
+value = 0x27
+
+[[changes]]
+offset = 0x19D2E9
+expect = 0xFF
+value = 0xFE
+
+[[changes]]
+offset = 0x19D2EA
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D2EB
+expect = 0xFF
+value = 0x28
+
+[[changes]]
+offset = 0x19D2EC
+expect = 0xFF
+value = 0x6B
+
+[[changes]]
+offset = 0x19D2ED
+expect = 0xFF
+value = 0xD1
+
+[[changes]]
+offset = 0x19D2EE
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D2EF
+expect = 0xFF
+value = 0x98
+
+[[changes]]
+offset = 0x19D2F0
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D2F1
+expect = 0xFF
+value = 0xF0
+
+[[changes]]
+offset = 0x19D2F2
+expect = 0xFF
+value = 0x80
+
+[[changes]]
+offset = 0x19D2F3
+expect = 0xFF
+value = 0xF9
+
+[[changes]]
+offset = 0x19D2F4
+expect = 0xFF
+value = 0x06
+
+[[changes]]
+offset = 0x19D2F5
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D2F6
+expect = 0xFF
+value = 0x69
+
+[[changes]]
+offset = 0x19D2F7
+expect = 0xFF
+value = 0x46
+
+[[changes]]
+offset = 0x19D2F8
+expect = 0xFF
+value = 0x0E
+
+[[changes]]
+offset = 0x19D2F9
+expect = 0xFF
+value = 0x70
+
+[[changes]]
+offset = 0x19D2FA
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D2FB
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D2FC
+expect = 0xFF
+value = 0x69
+
+[[changes]]
+offset = 0x19D2FD
+expect = 0xFF
+value = 0x46
+
+[[changes]]
+offset = 0x19D2FE
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D2FF
+expect = 0xFF
+value = 0x22
+
+[[changes]]
+offset = 0x19D300
+expect = 0xFF
+value = 0xD1
+
+[[changes]]
+offset = 0x19D301
+expect = 0xFF
+value = 0xF6
+
+[[changes]]
+offset = 0x19D302
+expect = 0xFF
+value = 0xB1
+
+[[changes]]
+offset = 0x19D303
+expect = 0xFF
+value = 0xFD
+
+[[changes]]
+offset = 0x19D304
+expect = 0xFF
+value = 0x61
+
+[[changes]]
+offset = 0x19D305
+expect = 0xFF
+value = 0xE0
+
+[[changes]]
+offset = 0x19D306
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D307
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D308
+expect = 0xFF
+value = 0x03
+
+[[changes]]
+offset = 0x19D309
+expect = 0xFF
+value = 0x90
+
+[[changes]]
+offset = 0x19D30A
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D30B
+expect = 0xFF
+value = 0xE0
+
+[[changes]]
+offset = 0x19D30C
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D30D
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D30E
+expect = 0xFF
+value = 0x03
+
+[[changes]]
+offset = 0x19D30F
+expect = 0xFF
+value = 0x90
+
+[[changes]]
+offset = 0x19D310
+expect = 0xFF
+value = 0xA0
+
+[[changes]]
+offset = 0x19D311
+expect = 0xFF
+value = 0x79
+
+[[changes]]
+offset = 0x19D312
+expect = 0xFF
+value = 0x2C
+
+[[changes]]
+offset = 0x19D313
+expect = 0xFF
+value = 0x28
+
+[[changes]]
+offset = 0x19D314
+expect = 0xFF
+value = 0x57
+
+[[changes]]
+offset = 0x19D315
+expect = 0xFF
+value = 0xD1
+
+[[changes]]
+offset = 0x19D316
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D317
+expect = 0xFF
+value = 0xA8
+
+[[changes]]
+offset = 0x19D318
+expect = 0xFF
+value = 0x21
+
+[[changes]]
+offset = 0x19D319
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D31A
+expect = 0xFF
+value = 0x04
+
+[[changes]]
+offset = 0x19D31B
+expect = 0xFF
+value = 0x31
+
+[[changes]]
+offset = 0x19D31C
+expect = 0xFF
+value = 0x02
+
+[[changes]]
+offset = 0x19D31D
+expect = 0xFF
+value = 0x22
+
+[[changes]]
+offset = 0x19D31E
+expect = 0xFF
+value = 0xD0
+
+[[changes]]
+offset = 0x19D31F
+expect = 0xFF
+value = 0xF6
+
+[[changes]]
+offset = 0x19D320
+expect = 0xFF
+value = 0x0B
+
+[[changes]]
+offset = 0x19D321
+expect = 0xFF
+value = 0xFE
+
+[[changes]]
+offset = 0x19D322
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D323
+expect = 0xFF
+value = 0x28
+
+[[changes]]
+offset = 0x19D324
+expect = 0xFF
+value = 0x4F
+
+[[changes]]
+offset = 0x19D325
+expect = 0xFF
+value = 0xD1
+
+[[changes]]
+offset = 0x19D326
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D327
+expect = 0xFF
+value = 0x9E
+
+[[changes]]
+offset = 0x19D328
+expect = 0xFF
+value = 0x18
+
+[[changes]]
+offset = 0x19D329
+expect = 0xFF
+value = 0x2E
+
+[[changes]]
+offset = 0x19D32A
+expect = 0xFF
+value = 0x4C
+
+[[changes]]
+offset = 0x19D32B
+expect = 0xFF
+value = 0xD8
+
+[[changes]]
+offset = 0x19D32C
+expect = 0xFF
+value = 0xE7
+
+[[changes]]
+offset = 0x19D32D
+expect = 0xFF
+value = 0x79
+
+[[changes]]
+offset = 0x19D32E
+expect = 0xFF
+value = 0x30
+
+[[changes]]
+offset = 0x19D32F
+expect = 0xFF
+value = 0x3F
+
+[[changes]]
+offset = 0x19D330
+expect = 0xFF
+value = 0x02
+
+[[changes]]
+offset = 0x19D331
+expect = 0xFF
+value = 0x2F
+
+[[changes]]
+offset = 0x19D332
+expect = 0xFF
+value = 0x48
+
+[[changes]]
+offset = 0x19D333
+expect = 0xFF
+value = 0xD8
+
+[[changes]]
+offset = 0x19D334
+expect = 0xFF
+value = 0x02
+
+[[changes]]
+offset = 0x19D335
+expect = 0xFF
+value = 0xA8
+
+[[changes]]
+offset = 0x19D336
+expect = 0xFF
+value = 0x21
+
+[[changes]]
+offset = 0x19D337
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D338
+expect = 0xFF
+value = 0x08
+
+[[changes]]
+offset = 0x19D339
+expect = 0xFF
+value = 0x31
+
+[[changes]]
+offset = 0x19D33A
+expect = 0xFF
+value = 0x02
+
+[[changes]]
+offset = 0x19D33B
+expect = 0xFF
+value = 0x22
+
+[[changes]]
+offset = 0x19D33C
+expect = 0xFF
+value = 0xD0
+
+[[changes]]
+offset = 0x19D33D
+expect = 0xFF
+value = 0xF6
+
+[[changes]]
+offset = 0x19D33E
+expect = 0xFF
+value = 0xFC
+
+[[changes]]
+offset = 0x19D33F
+expect = 0xFF
+value = 0xFD
+
+[[changes]]
+offset = 0x19D340
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D341
+expect = 0xFF
+value = 0x28
+
+[[changes]]
+offset = 0x19D342
+expect = 0xFF
+value = 0x40
+
+[[changes]]
+offset = 0x19D343
+expect = 0xFF
+value = 0xD1
+
+[[changes]]
+offset = 0x19D344
+expect = 0xFF
+value = 0x30
+
+[[changes]]
+offset = 0x19D345
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D346
+expect = 0xFF
+value = 0x39
+
+[[changes]]
+offset = 0x19D347
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D348
+expect = 0xFF
+value = 0x02
+
+[[changes]]
+offset = 0x19D349
+expect = 0xFF
+value = 0x9A
+
+[[changes]]
+offset = 0x19D34A
+expect = 0xFF
+value = 0x03
+
+[[changes]]
+offset = 0x19D34B
+expect = 0xFF
+value = 0x98
+
+[[changes]]
+offset = 0x19D34C
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D34D
+expect = 0xFF
+value = 0x28
+
+[[changes]]
+offset = 0x19D34E
+expect = 0xFF
+value = 0x03
+
+[[changes]]
+offset = 0x19D34F
+expect = 0xFF
+value = 0xD0
+
+[[changes]]
+offset = 0x19D350
+expect = 0xFF
+value = 0x30
+
+[[changes]]
+offset = 0x19D351
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D352
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D353
+expect = 0xFF
+value = 0xF0
+
+[[changes]]
+offset = 0x19D354
+expect = 0xFF
+value = 0xCC
+
+[[changes]]
+offset = 0x19D355
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D356
+expect = 0xFF
+value = 0x02
+
+[[changes]]
+offset = 0x19D357
+expect = 0xFF
+value = 0xE0
+
+[[changes]]
+offset = 0x19D358
+expect = 0xFF
+value = 0x30
+
+[[changes]]
+offset = 0x19D359
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D35A
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D35B
+expect = 0xFF
+value = 0xF0
+
+[[changes]]
+offset = 0x19D35C
+expect = 0xFF
+value = 0xAE
+
+[[changes]]
+offset = 0x19D35D
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D35E
+expect = 0xFF
+value = 0x06
+
+[[changes]]
+offset = 0x19D35F
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D360
+expect = 0xFF
+value = 0x69
+
+[[changes]]
+offset = 0x19D361
+expect = 0xFF
+value = 0x46
+
+[[changes]]
+offset = 0x19D362
+expect = 0xFF
+value = 0x0E
+
+[[changes]]
+offset = 0x19D363
+expect = 0xFF
+value = 0x70
+
+[[changes]]
+offset = 0x19D364
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D365
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D366
+expect = 0xFF
+value = 0x69
+
+[[changes]]
+offset = 0x19D367
+expect = 0xFF
+value = 0x46
+
+[[changes]]
+offset = 0x19D368
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D369
+expect = 0xFF
+value = 0x22
+
+[[changes]]
+offset = 0x19D36A
+expect = 0xFF
+value = 0xD1
+
+[[changes]]
+offset = 0x19D36B
+expect = 0xFF
+value = 0xF6
+
+[[changes]]
+offset = 0x19D36C
+expect = 0xFF
+value = 0x7C
+
+[[changes]]
+offset = 0x19D36D
+expect = 0xFF
+value = 0xFD
+
+[[changes]]
+offset = 0x19D36E
+expect = 0xFF
+value = 0x2C
+
+[[changes]]
+offset = 0x19D36F
+expect = 0xFF
+value = 0xE0
+
+[[changes]]
+offset = 0x19D370
+expect = 0xFF
+value = 0x26
+
+[[changes]]
+offset = 0x19D371
+expect = 0xFF
+value = 0x79
+
+[[changes]]
+offset = 0x19D372
+expect = 0xFF
+value = 0x30
+
+[[changes]]
+offset = 0x19D373
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D374
+expect = 0xFF
+value = 0x30
+
+[[changes]]
+offset = 0x19D375
+expect = 0xFF
+value = 0x38
+
+[[changes]]
+offset = 0x19D376
+expect = 0xFF
+value = 0x09
+
+[[changes]]
+offset = 0x19D377
+expect = 0xFF
+value = 0x28
+
+[[changes]]
+offset = 0x19D378
+expect = 0xFF
+value = 0x25
+
+[[changes]]
+offset = 0x19D379
+expect = 0xFF
+value = 0xD8
+
+[[changes]]
+offset = 0x19D37A
+expect = 0xFF
+value = 0x60
+
+[[changes]]
+offset = 0x19D37B
+expect = 0xFF
+value = 0x79
+
+[[changes]]
+offset = 0x19D37C
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D37D
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D37E
+expect = 0xFF
+value = 0x30
+
+[[changes]]
+offset = 0x19D37F
+expect = 0xFF
+value = 0x39
+
+[[changes]]
+offset = 0x19D380
+expect = 0xFF
+value = 0x09
+
+[[changes]]
+offset = 0x19D381
+expect = 0xFF
+value = 0x29
+
+[[changes]]
+offset = 0x19D382
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D383
+expect = 0xFF
+value = 0xD8
+
+[[changes]]
+offset = 0x19D384
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D385
+expect = 0xFF
+value = 0x02
+
+[[changes]]
+offset = 0x19D386
+expect = 0xFF
+value = 0x06
+
+[[changes]]
+offset = 0x19D387
+expect = 0xFF
+value = 0x43
+
+[[changes]]
+offset = 0x19D388
+expect = 0xFF
+value = 0xA0
+
+[[changes]]
+offset = 0x19D389
+expect = 0xFF
+value = 0x79
+
+[[changes]]
+offset = 0x19D38A
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D38B
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D38C
+expect = 0xFF
+value = 0x30
+
+[[changes]]
+offset = 0x19D38D
+expect = 0xFF
+value = 0x39
+
+[[changes]]
+offset = 0x19D38E
+expect = 0xFF
+value = 0x09
+
+[[changes]]
+offset = 0x19D38F
+expect = 0xFF
+value = 0x29
+
+[[changes]]
+offset = 0x19D390
+expect = 0xFF
+value = 0x19
+
+[[changes]]
+offset = 0x19D391
+expect = 0xFF
+value = 0xD8
+
+[[changes]]
+offset = 0x19D392
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D393
+expect = 0xFF
+value = 0x04
+
+[[changes]]
+offset = 0x19D394
+expect = 0xFF
+value = 0x06
+
+[[changes]]
+offset = 0x19D395
+expect = 0xFF
+value = 0x43
+
+[[changes]]
+offset = 0x19D396
+expect = 0xFF
+value = 0xE0
+
+[[changes]]
+offset = 0x19D397
+expect = 0xFF
+value = 0x79
+
+[[changes]]
+offset = 0x19D398
+expect = 0xFF
+value = 0x2C
+
+[[changes]]
+offset = 0x19D399
+expect = 0xFF
+value = 0x28
+
+[[changes]]
+offset = 0x19D39A
+expect = 0xFF
+value = 0x14
+
+[[changes]]
+offset = 0x19D39B
+expect = 0xFF
+value = 0xD1
+
+[[changes]]
+offset = 0x19D39C
+expect = 0xFF
+value = 0x02
+
+[[changes]]
+offset = 0x19D39D
+expect = 0xFF
+value = 0xA8
+
+[[changes]]
+offset = 0x19D39E
+expect = 0xFF
+value = 0x21
+
+[[changes]]
+offset = 0x19D39F
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D3A0
+expect = 0xFF
+value = 0x08
+
+[[changes]]
+offset = 0x19D3A1
+expect = 0xFF
+value = 0x31
+
+[[changes]]
+offset = 0x19D3A2
+expect = 0xFF
+value = 0x02
+
+[[changes]]
+offset = 0x19D3A3
+expect = 0xFF
+value = 0x22
+
+[[changes]]
+offset = 0x19D3A4
+expect = 0xFF
+value = 0xD0
+
+[[changes]]
+offset = 0x19D3A5
+expect = 0xFF
+value = 0xF6
+
+[[changes]]
+offset = 0x19D3A6
+expect = 0xFF
+value = 0xC8
+
+[[changes]]
+offset = 0x19D3A7
+expect = 0xFF
+value = 0xFD
+
+[[changes]]
+offset = 0x19D3A8
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D3A9
+expect = 0xFF
+value = 0x28
+
+[[changes]]
+offset = 0x19D3AA
+expect = 0xFF
+value = 0x0C
+
+[[changes]]
+offset = 0x19D3AB
+expect = 0xFF
+value = 0xD1
+
+[[changes]]
+offset = 0x19D3AC
+expect = 0xFF
+value = 0x30
+
+[[changes]]
+offset = 0x19D3AD
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D3AE
+expect = 0xFF
+value = 0x02
+
+[[changes]]
+offset = 0x19D3AF
+expect = 0xFF
+value = 0x99
+
+[[changes]]
+offset = 0x19D3B0
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D3B1
+expect = 0xFF
+value = 0xF0
+
+[[changes]]
+offset = 0x19D3B2
+expect = 0xFF
+value = 0xDC
+
+[[changes]]
+offset = 0x19D3B3
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D3B4
+expect = 0xFF
+value = 0x06
+
+[[changes]]
+offset = 0x19D3B5
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D3B6
+expect = 0xFF
+value = 0x69
+
+[[changes]]
+offset = 0x19D3B7
+expect = 0xFF
+value = 0x46
+
+[[changes]]
+offset = 0x19D3B8
+expect = 0xFF
+value = 0x0E
+
+[[changes]]
+offset = 0x19D3B9
+expect = 0xFF
+value = 0x70
+
+[[changes]]
+offset = 0x19D3BA
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D3BB
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D3BC
+expect = 0xFF
+value = 0x69
+
+[[changes]]
+offset = 0x19D3BD
+expect = 0xFF
+value = 0x46
+
+[[changes]]
+offset = 0x19D3BE
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D3BF
+expect = 0xFF
+value = 0x22
+
+[[changes]]
+offset = 0x19D3C0
+expect = 0xFF
+value = 0xD1
+
+[[changes]]
+offset = 0x19D3C1
+expect = 0xFF
+value = 0xF6
+
+[[changes]]
+offset = 0x19D3C2
+expect = 0xFF
+value = 0x51
+
+[[changes]]
+offset = 0x19D3C3
+expect = 0xFF
+value = 0xFD
+
+[[changes]]
+offset = 0x19D3C4
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D3C5
+expect = 0xFF
+value = 0xE0
+
+[[changes]]
+offset = 0x19D3C6
+expect = 0xFF
+value = 0x92
+
+[[changes]]
+offset = 0x19D3C7
+expect = 0xFF
+value = 0xF6
+
+[[changes]]
+offset = 0x19D3C8
+expect = 0xFF
+value = 0x1D
+
+[[changes]]
+offset = 0x19D3C9
+expect = 0xFF
+value = 0xFB
+
+[[changes]]
+offset = 0x19D3CA
+expect = 0xFF
+value = 0x04
+
+[[changes]]
+offset = 0x19D3CB
+expect = 0xFF
+value = 0xB0
+
+[[changes]]
+offset = 0x19D3CC
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D3CD
+expect = 0xFF
+value = 0xBD
+
+[[changes]]
+offset = 0x19D3CE
+expect = 0xFF
+value = 0xC0
+
+[[changes]]
+offset = 0x19D3CF
+expect = 0xFF
+value = 0x46
+
+[[changes]]
+offset = 0x19D3D0
+expect = 0xFF
+value = 0x44
+
+[[changes]]
+offset = 0x19D3D1
+expect = 0xFF
+value = 0x37
+
+[[changes]]
+offset = 0x19D3D2
+expect = 0xFF
+value = 0x35
+
+[[changes]]
+offset = 0x19D3D3
+expect = 0xFF
+value = 0x41
+
+[[changes]]
+offset = 0x19D3D4
+expect = 0xFF
+value = 0x03
+
+[[changes]]
+offset = 0x19D3D5
+expect = 0xFF
+value = 0x7F
+
+[[changes]]
+offset = 0x19D3D6
+expect = 0xFF
+value = 0x18
+
+[[changes]]
+offset = 0x19D3D7
+expect = 0xFF
+value = 0x02
+
+[[changes]]
+offset = 0x19D3D8
+expect = 0xFF
+value = 0xF0
+
+[[changes]]
+offset = 0x19D3D9
+expect = 0xFF
+value = 0xB5
+
+[[changes]]
+offset = 0x19D3DA
+expect = 0xFF
+value = 0x81
+
+[[changes]]
+offset = 0x19D3DB
+expect = 0xFF
+value = 0xB0
+
+[[changes]]
+offset = 0x19D3DC
+expect = 0xFF
+value = 0xDA
+
+[[changes]]
+offset = 0x19D3DD
+expect = 0xFF
+value = 0x4C
+
+[[changes]]
+offset = 0x19D3DE
+expect = 0xFF
+value = 0xDB
+
+[[changes]]
+offset = 0x19D3DF
+expect = 0xFF
+value = 0x4D
+
+[[changes]]
+offset = 0x19D3E0
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D3E1
+expect = 0xFF
+value = 0x68
+
+[[changes]]
+offset = 0x19D3E2
+expect = 0xFF
+value = 0xA8
+
+[[changes]]
+offset = 0x19D3E3
+expect = 0xFF
+value = 0x42
+
+[[changes]]
+offset = 0x19D3E4
+expect = 0xFF
+value = 0x12
+
+[[changes]]
+offset = 0x19D3E5
+expect = 0xFF
+value = 0xD1
+
+[[changes]]
+offset = 0x19D3E6
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D3E7
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D3E8
+expect = 0xFF
+value = 0xFC
+
+[[changes]]
+offset = 0x19D3E9
+expect = 0xFF
+value = 0x30
+
+[[changes]]
+offset = 0x19D3EA
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D3EB
+expect = 0xFF
+value = 0x68
+
+[[changes]]
+offset = 0x19D3EC
+expect = 0xFF
+value = 0xA8
+
+[[changes]]
+offset = 0x19D3ED
+expect = 0xFF
+value = 0x42
+
+[[changes]]
+offset = 0x19D3EE
+expect = 0xFF
+value = 0x0D
+
+[[changes]]
+offset = 0x19D3EF
+expect = 0xFF
+value = 0xD1
+
+[[changes]]
+offset = 0x19D3F0
+expect = 0xFF
+value = 0x60
+
+[[changes]]
+offset = 0x19D3F1
+expect = 0xFF
+value = 0x68
+
+[[changes]]
+offset = 0x19D3F2
+expect = 0xFF
+value = 0x03
+
+[[changes]]
+offset = 0x19D3F3
+expect = 0xFF
+value = 0x28
+
+[[changes]]
+offset = 0x19D3F4
+expect = 0xFF
+value = 0x0A
+
+[[changes]]
+offset = 0x19D3F5
+expect = 0xFF
+value = 0xD1
+
+[[changes]]
+offset = 0x19D3F6
+expect = 0xFF
+value = 0xE0
+
+[[changes]]
+offset = 0x19D3F7
+expect = 0xFF
+value = 0x68
+
+[[changes]]
+offset = 0x19D3F8
+expect = 0xFF
+value = 0x7F
+
+[[changes]]
+offset = 0x19D3F9
+expect = 0xFF
+value = 0x28
+
+[[changes]]
+offset = 0x19D3FA
+expect = 0xFF
+value = 0x07
+
+[[changes]]
+offset = 0x19D3FB
+expect = 0xFF
+value = 0xD1
+
+[[changes]]
+offset = 0x19D3FC
+expect = 0xFF
+value = 0xE0
+
+[[changes]]
+offset = 0x19D3FD
+expect = 0xFF
+value = 0x6D
+
+[[changes]]
+offset = 0x19D3FE
+expect = 0xFF
+value = 0xD4
+
+[[changes]]
+offset = 0x19D3FF
+expect = 0xFF
+value = 0x49
+
+[[changes]]
+offset = 0x19D400
+expect = 0xFF
+value = 0x88
+
+[[changes]]
+offset = 0x19D401
+expect = 0xFF
+value = 0x42
+
+[[changes]]
+offset = 0x19D402
+expect = 0xFF
+value = 0x03
+
+[[changes]]
+offset = 0x19D403
+expect = 0xFF
+value = 0xD1
+
+[[changes]]
+offset = 0x19D404
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D405
+expect = 0xFF
+value = 0x6E
+
+[[changes]]
+offset = 0x19D406
+expect = 0xFF
+value = 0xD3
+
+[[changes]]
+offset = 0x19D407
+expect = 0xFF
+value = 0x49
+
+[[changes]]
+offset = 0x19D408
+expect = 0xFF
+value = 0x88
+
+[[changes]]
+offset = 0x19D409
+expect = 0xFF
+value = 0x42
+
+[[changes]]
+offset = 0x19D40A
+expect = 0xFF
+value = 0x2C
+
+[[changes]]
+offset = 0x19D40B
+expect = 0xFF
+value = 0xD0
+
+[[changes]]
+offset = 0x19D40C
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D40D
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D40E
+expect = 0xFF
+value = 0x40
+
+[[changes]]
+offset = 0x19D40F
+expect = 0xFF
+value = 0x21
+
+[[changes]]
+offset = 0x19D410
+expect = 0xFF
+value = 0x22
+
+[[changes]]
+offset = 0x19D411
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D412
+expect = 0xFF
+value = 0x10
+
+[[changes]]
+offset = 0x19D413
+expect = 0xFF
+value = 0x60
+
+[[changes]]
+offset = 0x19D414
+expect = 0xFF
+value = 0x04
+
+[[changes]]
+offset = 0x19D415
+expect = 0xFF
+value = 0x32
+
+[[changes]]
+offset = 0x19D416
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D417
+expect = 0xFF
+value = 0x39
+
+[[changes]]
+offset = 0x19D418
+expect = 0xFF
+value = 0xFB
+
+[[changes]]
+offset = 0x19D419
+expect = 0xFF
+value = 0xD1
+
+[[changes]]
+offset = 0x19D41A
+expect = 0xFF
+value = 0x25
+
+[[changes]]
+offset = 0x19D41B
+expect = 0xFF
+value = 0x60
+
+[[changes]]
+offset = 0x19D41C
+expect = 0xFF
+value = 0x03
+
+[[changes]]
+offset = 0x19D41D
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D41E
+expect = 0xFF
+value = 0x60
+
+[[changes]]
+offset = 0x19D41F
+expect = 0xFF
+value = 0x60
+
+[[changes]]
+offset = 0x19D420
+expect = 0xFF
+value = 0x7F
+
+[[changes]]
+offset = 0x19D421
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D422
+expect = 0xFF
+value = 0xE0
+
+[[changes]]
+offset = 0x19D423
+expect = 0xFF
+value = 0x60
+
+[[changes]]
+offset = 0x19D424
+expect = 0xFF
+value = 0xF0
+
+[[changes]]
+offset = 0x19D425
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D426
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D427
+expect = 0xFF
+value = 0x61
+
+[[changes]]
+offset = 0x19D428
+expect = 0xFF
+value = 0xB4
+
+[[changes]]
+offset = 0x19D429
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D42A
+expect = 0xFF
+value = 0x60
+
+[[changes]]
+offset = 0x19D42B
+expect = 0xFF
+value = 0x61
+
+[[changes]]
+offset = 0x19D42C
+expect = 0xFF
+value = 0xCA
+
+[[changes]]
+offset = 0x19D42D
+expect = 0xFF
+value = 0x48
+
+[[changes]]
+offset = 0x19D42E
+expect = 0xFF
+value = 0xA0
+
+[[changes]]
+offset = 0x19D42F
+expect = 0xFF
+value = 0x61
+
+[[changes]]
+offset = 0x19D430
+expect = 0xFF
+value = 0xCA
+
+[[changes]]
+offset = 0x19D431
+expect = 0xFF
+value = 0x48
+
+[[changes]]
+offset = 0x19D432
+expect = 0xFF
+value = 0xE0
+
+[[changes]]
+offset = 0x19D433
+expect = 0xFF
+value = 0x61
+
+[[changes]]
+offset = 0x19D434
+expect = 0xFF
+value = 0xCA
+
+[[changes]]
+offset = 0x19D435
+expect = 0xFF
+value = 0x48
+
+[[changes]]
+offset = 0x19D436
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D437
+expect = 0xFF
+value = 0x62
+
+[[changes]]
+offset = 0x19D438
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D439
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D43A
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D43B
+expect = 0xFF
+value = 0x02
+
+[[changes]]
+offset = 0x19D43C
+expect = 0xFF
+value = 0x60
+
+[[changes]]
+offset = 0x19D43D
+expect = 0xFF
+value = 0x62
+
+[[changes]]
+offset = 0x19D43E
+expect = 0xFF
+value = 0xC9
+
+[[changes]]
+offset = 0x19D43F
+expect = 0xFF
+value = 0x48
+
+[[changes]]
+offset = 0x19D440
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D441
+expect = 0xFF
+value = 0x65
+
+[[changes]]
+offset = 0x19D442
+expect = 0xFF
+value = 0xC9
+
+[[changes]]
+offset = 0x19D443
+expect = 0xFF
+value = 0x48
+
+[[changes]]
+offset = 0x19D444
+expect = 0xFF
+value = 0x60
+
+[[changes]]
+offset = 0x19D445
+expect = 0xFF
+value = 0x65
+
+[[changes]]
+offset = 0x19D446
+expect = 0xFF
+value = 0x18
+
+[[changes]]
+offset = 0x19D447
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D448
+expect = 0xFF
+value = 0x02
+
+[[changes]]
+offset = 0x19D449
+expect = 0xFF
+value = 0x21
+
+[[changes]]
+offset = 0x19D44A
+expect = 0xFF
+value = 0x09
+
+[[changes]]
+offset = 0x19D44B
+expect = 0xFF
+value = 0x02
+
+[[changes]]
+offset = 0x19D44C
+expect = 0xFF
+value = 0x08
+
+[[changes]]
+offset = 0x19D44D
+expect = 0xFF
+value = 0x43
+
+[[changes]]
+offset = 0x19D44E
+expect = 0xFF
+value = 0xA0
+
+[[changes]]
+offset = 0x19D44F
+expect = 0xFF
+value = 0x65
+
+[[changes]]
+offset = 0x19D450
+expect = 0xFF
+value = 0xBF
+
+[[changes]]
+offset = 0x19D451
+expect = 0xFF
+value = 0x48
+
+[[changes]]
+offset = 0x19D452
+expect = 0xFF
+value = 0xE0
+
+[[changes]]
+offset = 0x19D453
+expect = 0xFF
+value = 0x65
+
+[[changes]]
+offset = 0x19D454
+expect = 0xFF
+value = 0xBF
+
+[[changes]]
+offset = 0x19D455
+expect = 0xFF
+value = 0x48
+
+[[changes]]
+offset = 0x19D456
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D457
+expect = 0xFF
+value = 0x66
+
+[[changes]]
+offset = 0x19D458
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D459
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D45A
+expect = 0xFF
+value = 0x60
+
+[[changes]]
+offset = 0x19D45B
+expect = 0xFF
+value = 0x66
+
+[[changes]]
+offset = 0x19D45C
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D45D
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D45E
+expect = 0xFF
+value = 0xE0
+
+[[changes]]
+offset = 0x19D45F
+expect = 0xFF
+value = 0x62
+
+[[changes]]
+offset = 0x19D460
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D461
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D462
+expect = 0xFF
+value = 0xFC
+
+[[changes]]
+offset = 0x19D463
+expect = 0xFF
+value = 0x30
+
+[[changes]]
+offset = 0x19D464
+expect = 0xFF
+value = 0x05
+
+[[changes]]
+offset = 0x19D465
+expect = 0xFF
+value = 0x60
+
+[[changes]]
+offset = 0x19D466
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D467
+expect = 0xFF
+value = 0xB0
+
+[[changes]]
+offset = 0x19D468
+expect = 0xFF
+value = 0xF0
+
+[[changes]]
+offset = 0x19D469
+expect = 0xFF
+value = 0xBD
+
+[[changes]]
+offset = 0x19D46A
+expect = 0xFF
+value = 0xB7
+
+[[changes]]
+offset = 0x19D46B
+expect = 0xFF
+value = 0x48
+
+[[changes]]
+offset = 0x19D46C
+expect = 0xFF
+value = 0x81
+
+[[changes]]
+offset = 0x19D46D
+expect = 0xFF
+value = 0x68
+
+[[changes]]
+offset = 0x19D46E
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D46F
+expect = 0xFF
+value = 0x31
+
+[[changes]]
+offset = 0x19D470
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D471
+expect = 0xFF
+value = 0x22
+
+[[changes]]
+offset = 0x19D472
+expect = 0xFF
+value = 0x11
+
+[[changes]]
+offset = 0x19D473
+expect = 0xFF
+value = 0x43
+
+[[changes]]
+offset = 0x19D474
+expect = 0xFF
+value = 0x81
+
+[[changes]]
+offset = 0x19D475
+expect = 0xFF
+value = 0x60
+
+[[changes]]
+offset = 0x19D476
+expect = 0xFF
+value = 0x81
+
+[[changes]]
+offset = 0x19D477
+expect = 0xFF
+value = 0x6B
+
+[[changes]]
+offset = 0x19D478
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D479
+expect = 0xFF
+value = 0x31
+
+[[changes]]
+offset = 0x19D47A
+expect = 0xFF
+value = 0x81
+
+[[changes]]
+offset = 0x19D47B
+expect = 0xFF
+value = 0x63
+
+[[changes]]
+offset = 0x19D47C
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D47D
+expect = 0xFF
+value = 0x21
+
+[[changes]]
+offset = 0x19D47E
+expect = 0xFF
+value = 0x81
+
+[[changes]]
+offset = 0x19D47F
+expect = 0xFF
+value = 0x66
+
+[[changes]]
+offset = 0x19D480
+expect = 0xFF
+value = 0xC1
+
+[[changes]]
+offset = 0x19D481
+expect = 0xFF
+value = 0x66
+
+[[changes]]
+offset = 0x19D482
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D483
+expect = 0xFF
+value = 0x67
+
+[[changes]]
+offset = 0x19D484
+expect = 0xFF
+value = 0x41
+
+[[changes]]
+offset = 0x19D485
+expect = 0xFF
+value = 0x67
+
+[[changes]]
+offset = 0x19D486
+expect = 0xFF
+value = 0x70
+
+[[changes]]
+offset = 0x19D487
+expect = 0xFF
+value = 0x47
+
+[[changes]]
+offset = 0x19D488
+expect = 0xFF
+value = 0xAF
+
+[[changes]]
+offset = 0x19D489
+expect = 0xFF
+value = 0x48
+
+[[changes]]
+offset = 0x19D48A
+expect = 0xFF
+value = 0x81
+
+[[changes]]
+offset = 0x19D48B
+expect = 0xFF
+value = 0x68
+
+[[changes]]
+offset = 0x19D48C
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D48D
+expect = 0xFF
+value = 0x31
+
+[[changes]]
+offset = 0x19D48E
+expect = 0xFF
+value = 0x81
+
+[[changes]]
+offset = 0x19D48F
+expect = 0xFF
+value = 0x60
+
+[[changes]]
+offset = 0x19D490
+expect = 0xFF
+value = 0x70
+
+[[changes]]
+offset = 0x19D491
+expect = 0xFF
+value = 0x47
+
+[[changes]]
+offset = 0x19D492
+expect = 0xFF
+value = 0x10
+
+[[changes]]
+offset = 0x19D493
+expect = 0xFF
+value = 0xB5
+
+[[changes]]
+offset = 0x19D495
+expect = 0xFF
+value = 0xF7
+
+[[changes]]
+offset = 0x19D496
+expect = 0xFF
+value = 0xA0
+
+[[changes]]
+offset = 0x19D499
+expect = 0xFF
+value = 0xF7
+
+[[changes]]
+offset = 0x19D49A
+expect = 0xFF
+value = 0xE7
+
+[[changes]]
+offset = 0x19D49C
+expect = 0xFF
+value = 0xAA
+
+[[changes]]
+offset = 0x19D49D
+expect = 0xFF
+value = 0x4C
+
+[[changes]]
+offset = 0x19D49E
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D49F
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D4A0
+expect = 0xFF
+value = 0xE0
+
+[[changes]]
+offset = 0x19D4A1
+expect = 0xFF
+value = 0x62
+
+[[changes]]
+offset = 0x19D4A2
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D4A3
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D4A4
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D4A5
+expect = 0xFF
+value = 0x63
+
+[[changes]]
+offset = 0x19D4A6
+expect = 0xFF
+value = 0x60
+
+[[changes]]
+offset = 0x19D4A7
+expect = 0xFF
+value = 0x63
+
+[[changes]]
+offset = 0x19D4A8
+expect = 0xFF
+value = 0xE0
+
+[[changes]]
+offset = 0x19D4A9
+expect = 0xFF
+value = 0x63
+
+[[changes]]
+offset = 0x19D4AA
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D4AB
+expect = 0xFF
+value = 0x64
+
+[[changes]]
+offset = 0x19D4AC
+expect = 0xFF
+value = 0x60
+
+[[changes]]
+offset = 0x19D4AD
+expect = 0xFF
+value = 0x64
+
+[[changes]]
+offset = 0x19D4AE
+expect = 0xFF
+value = 0xA0
+
+[[changes]]
+offset = 0x19D4AF
+expect = 0xFF
+value = 0x64
+
+[[changes]]
+offset = 0x19D4B0
+expect = 0xFF
+value = 0xE0
+
+[[changes]]
+offset = 0x19D4B1
+expect = 0xFF
+value = 0x64
+
+[[changes]]
+offset = 0x19D4B2
+expect = 0xFF
+value = 0x60
+
+[[changes]]
+offset = 0x19D4B3
+expect = 0xFF
+value = 0x66
+
+[[changes]]
+offset = 0x19D4B5
+expect = 0xFF
+value = 0xF7
+
+[[changes]]
+offset = 0x19D4B6
+expect = 0xFF
+value = 0xE8
+
+[[changes]]
+offset = 0x19D4B8
+expect = 0xFF
+value = 0x10
+
+[[changes]]
+offset = 0x19D4B9
+expect = 0xFF
+value = 0xBD
+
+[[changes]]
+offset = 0x19D4BA
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D4BB
+expect = 0xFF
+value = 0xB5
+
+[[changes]]
+offset = 0x19D4BC
+expect = 0xFF
+value = 0x04
+
+[[changes]]
+offset = 0x19D4BD
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D4BE
+expect = 0xFF
+value = 0x0D
+
+[[changes]]
+offset = 0x19D4BF
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D4C0
+expect = 0xFF
+value = 0x16
+
+[[changes]]
+offset = 0x19D4C1
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D4C3
+expect = 0xFF
+value = 0xF7
+
+[[changes]]
+offset = 0x19D4C4
+expect = 0xFF
+value = 0x89
+
+[[changes]]
+offset = 0x19D4C7
+expect = 0xFF
+value = 0xF7
+
+[[changes]]
+offset = 0x19D4C8
+expect = 0xFF
+value = 0xD0
+
+[[changes]]
+offset = 0x19D4CA
+expect = 0xFF
+value = 0x9F
+
+[[changes]]
+offset = 0x19D4CB
+expect = 0xFF
+value = 0x4F
+
+[[changes]]
+offset = 0x19D4CC
+expect = 0xFF
+value = 0x02
+
+[[changes]]
+offset = 0x19D4CD
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D4CE
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D4CF
+expect = 0xFF
+value = 0x63
+
+[[changes]]
+offset = 0x19D4D0
+expect = 0xFF
+value = 0x3E
+
+[[changes]]
+offset = 0x19D4D1
+expect = 0xFF
+value = 0x64
+
+[[changes]]
+offset = 0x19D4D2
+expect = 0xFF
+value = 0x7C
+
+[[changes]]
+offset = 0x19D4D3
+expect = 0xFF
+value = 0x64
+
+[[changes]]
+offset = 0x19D4D4
+expect = 0xFF
+value = 0xBD
+
+[[changes]]
+offset = 0x19D4D5
+expect = 0xFF
+value = 0x64
+
+[[changes]]
+offset = 0x19D4D6
+expect = 0xFF
+value = 0xA5
+
+[[changes]]
+offset = 0x19D4D7
+expect = 0xFF
+value = 0x48
+
+[[changes]]
+offset = 0x19D4D8
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D4D9
+expect = 0xFF
+value = 0x64
+
+[[changes]]
+offset = 0x19D4DA
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D4DB
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D4DC
+expect = 0xFF
+value = 0x29
+
+[[changes]]
+offset = 0x19D4DD
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D4DE
+expect = 0xFF
+value = 0xB8
+
+[[changes]]
+offset = 0x19D4DF
+expect = 0xFF
+value = 0xF6
+
+[[changes]]
+offset = 0x19D4E0
+expect = 0xFF
+value = 0x1B
+
+[[changes]]
+offset = 0x19D4E2
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D4E3
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D4E4
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D4E5
+expect = 0xFF
+value = 0x64
+
+[[changes]]
+offset = 0x19D4E7
+expect = 0xFF
+value = 0xF7
+
+[[changes]]
+offset = 0x19D4E8
+expect = 0xFF
+value = 0xCF
+
+[[changes]]
+offset = 0x19D4EA
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D4EB
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D4EC
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D4ED
+expect = 0xFF
+value = 0xBD
+
+[[changes]]
+offset = 0x19D4EE
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D4EF
+expect = 0xFF
+value = 0xB5
+
+[[changes]]
+offset = 0x19D4F0
+expect = 0xFF
+value = 0x04
+
+[[changes]]
+offset = 0x19D4F1
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D4F2
+expect = 0xFF
+value = 0x0D
+
+[[changes]]
+offset = 0x19D4F3
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D4F4
+expect = 0xFF
+value = 0x16
+
+[[changes]]
+offset = 0x19D4F5
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D4F7
+expect = 0xFF
+value = 0xF7
+
+[[changes]]
+offset = 0x19D4F8
+expect = 0xFF
+value = 0x6F
+
+[[changes]]
+offset = 0x19D4FB
+expect = 0xFF
+value = 0xF7
+
+[[changes]]
+offset = 0x19D4FC
+expect = 0xFF
+value = 0xB6
+
+[[changes]]
+offset = 0x19D4FE
+expect = 0xFF
+value = 0x92
+
+[[changes]]
+offset = 0x19D4FF
+expect = 0xFF
+value = 0x4F
+
+[[changes]]
+offset = 0x19D500
+expect = 0xFF
+value = 0x03
+
+[[changes]]
+offset = 0x19D501
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D502
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D503
+expect = 0xFF
+value = 0x63
+
+[[changes]]
+offset = 0x19D504
+expect = 0xFF
+value = 0x3E
+
+[[changes]]
+offset = 0x19D505
+expect = 0xFF
+value = 0x64
+
+[[changes]]
+offset = 0x19D506
+expect = 0xFF
+value = 0x7C
+
+[[changes]]
+offset = 0x19D507
+expect = 0xFF
+value = 0x64
+
+[[changes]]
+offset = 0x19D508
+expect = 0xFF
+value = 0xBD
+
+[[changes]]
+offset = 0x19D509
+expect = 0xFF
+value = 0x64
+
+[[changes]]
+offset = 0x19D50A
+expect = 0xFF
+value = 0x98
+
+[[changes]]
+offset = 0x19D50B
+expect = 0xFF
+value = 0x48
+
+[[changes]]
+offset = 0x19D50C
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D50D
+expect = 0xFF
+value = 0x64
+
+[[changes]]
+offset = 0x19D50E
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D50F
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D510
+expect = 0xFF
+value = 0x78
+
+[[changes]]
+offset = 0x19D511
+expect = 0xFF
+value = 0x66
+
+[[changes]]
+offset = 0x19D512
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D513
+expect = 0xFF
+value = 0xF0
+
+[[changes]]
+offset = 0x19D514
+expect = 0xFF
+value = 0x12
+
+[[changes]]
+offset = 0x19D515
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D516
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D517
+expect = 0xFF
+value = 0x28
+
+[[changes]]
+offset = 0x19D518
+expect = 0xFF
+value = 0x09
+
+[[changes]]
+offset = 0x19D519
+expect = 0xFF
+value = 0xD1
+
+[[changes]]
+offset = 0x19D51A
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D51B
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D51C
+expect = 0xFF
+value = 0x29
+
+[[changes]]
+offset = 0x19D51D
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D51E
+expect = 0xFF
+value = 0xB8
+
+[[changes]]
+offset = 0x19D51F
+expect = 0xFF
+value = 0xF6
+
+[[changes]]
+offset = 0x19D520
+expect = 0xFF
+value = 0xFB
+
+[[changes]]
+offset = 0x19D521
+expect = 0xFF
+value = 0xFE
+
+[[changes]]
+offset = 0x19D522
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D523
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D524
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D525
+expect = 0xFF
+value = 0x64
+
+[[changes]]
+offset = 0x19D527
+expect = 0xFF
+value = 0xF7
+
+[[changes]]
+offset = 0x19D528
+expect = 0xFF
+value = 0xAF
+
+[[changes]]
+offset = 0x19D52A
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D52B
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D52C
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D52D
+expect = 0xFF
+value = 0xBD
+
+[[changes]]
+offset = 0x19D52E
+expect = 0xFF
+value = 0x02
+
+[[changes]]
+offset = 0x19D52F
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D530
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D531
+expect = 0xFF
+value = 0x64
+
+[[changes]]
+offset = 0x19D533
+expect = 0xFF
+value = 0xF7
+
+[[changes]]
+offset = 0x19D534
+expect = 0xFF
+value = 0xA9
+
+[[changes]]
+offset = 0x19D536
+expect = 0xFF
+value = 0x02
+
+[[changes]]
+offset = 0x19D537
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D538
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D539
+expect = 0xFF
+value = 0xBD
+
+[[changes]]
+offset = 0x19D53A
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D53B
+expect = 0xFF
+value = 0xB5
+
+[[changes]]
+offset = 0x19D53C
+expect = 0xFF
+value = 0x82
+
+[[changes]]
+offset = 0x19D53D
+expect = 0xFF
+value = 0x4C
+
+[[changes]]
+offset = 0x19D53E
+expect = 0xFF
+value = 0xE0
+
+[[changes]]
+offset = 0x19D53F
+expect = 0xFF
+value = 0x6A
+
+[[changes]]
+offset = 0x19D540
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D541
+expect = 0xFF
+value = 0x28
+
+[[changes]]
+offset = 0x19D542
+expect = 0xFF
+value = 0x11
+
+[[changes]]
+offset = 0x19D543
+expect = 0xFF
+value = 0xD1
+
+[[changes]]
+offset = 0x19D544
+expect = 0xFF
+value = 0x8A
+
+[[changes]]
+offset = 0x19D545
+expect = 0xFF
+value = 0x48
+
+[[changes]]
+offset = 0x19D546
+expect = 0xFF
+value = 0x87
+
+[[changes]]
+offset = 0x19D547
+expect = 0xFF
+value = 0x49
+
+[[changes]]
+offset = 0x19D548
+expect = 0xFF
+value = 0x85
+
+[[changes]]
+offset = 0x19D549
+expect = 0xFF
+value = 0x4A
+
+[[changes]]
+offset = 0x19D54A
+expect = 0xFF
+value = 0x73
+
+[[changes]]
+offset = 0x19D54B
+expect = 0xFF
+value = 0xF6
+
+[[changes]]
+offset = 0x19D54C
+expect = 0xFF
+value = 0x3E
+
+[[changes]]
+offset = 0x19D54E
+expect = 0xFF
+value = 0x86
+
+[[changes]]
+offset = 0x19D54F
+expect = 0xFF
+value = 0x4C
+
+[[changes]]
+offset = 0x19D550
+expect = 0xFF
+value = 0x87
+
+[[changes]]
+offset = 0x19D551
+expect = 0xFF
+value = 0x4D
+
+[[changes]]
+offset = 0x19D552
+expect = 0xFF
+value = 0x88
+
+[[changes]]
+offset = 0x19D553
+expect = 0xFF
+value = 0x4E
+
+[[changes]]
+offset = 0x19D554
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D555
+expect = 0xFF
+value = 0x68
+
+[[changes]]
+offset = 0x19D556
+expect = 0xFF
+value = 0x29
+
+[[changes]]
+offset = 0x19D557
+expect = 0xFF
+value = 0x68
+
+[[changes]]
+offset = 0x19D558
+expect = 0xFF
+value = 0x88
+
+[[changes]]
+offset = 0x19D559
+expect = 0xFF
+value = 0x42
+
+[[changes]]
+offset = 0x19D55A
+expect = 0xFF
+value = 0x05
+
+[[changes]]
+offset = 0x19D55B
+expect = 0xFF
+value = 0xD1
+
+[[changes]]
+offset = 0x19D55C
+expect = 0xFF
+value = 0x04
+
+[[changes]]
+offset = 0x19D55D
+expect = 0xFF
+value = 0x34
+
+[[changes]]
+offset = 0x19D55E
+expect = 0xFF
+value = 0x04
+
+[[changes]]
+offset = 0x19D55F
+expect = 0xFF
+value = 0x35
+
+[[changes]]
+offset = 0x19D560
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D561
+expect = 0xFF
+value = 0x3E
+
+[[changes]]
+offset = 0x19D562
+expect = 0xFF
+value = 0xF7
+
+[[changes]]
+offset = 0x19D563
+expect = 0xFF
+value = 0xD1
+
+[[changes]]
+offset = 0x19D564
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D565
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D566
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D567
+expect = 0xFF
+value = 0xBD
+
+[[changes]]
+offset = 0x19D568
+expect = 0xFF
+value = 0x02
+
+[[changes]]
+offset = 0x19D569
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D56A
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D56B
+expect = 0xFF
+value = 0xBD
+
+[[changes]]
+offset = 0x19D56C
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D56D
+expect = 0xFF
+value = 0xB5
+
+[[changes]]
+offset = 0x19D56E
+expect = 0xFF
+value = 0x04
+
+[[changes]]
+offset = 0x19D56F
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D570
+expect = 0xFF
+value = 0x0D
+
+[[changes]]
+offset = 0x19D571
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D573
+expect = 0xFF
+value = 0xF7
+
+[[changes]]
+offset = 0x19D574
+expect = 0xFF
+value = 0x31
+
+[[changes]]
+offset = 0x19D577
+expect = 0xFF
+value = 0xF7
+
+[[changes]]
+offset = 0x19D578
+expect = 0xFF
+value = 0x78
+
+[[changes]]
+offset = 0x19D57A
+expect = 0xFF
+value = 0x73
+
+[[changes]]
+offset = 0x19D57B
+expect = 0xFF
+value = 0x4F
+
+[[changes]]
+offset = 0x19D57C
+expect = 0xFF
+value = 0x04
+
+[[changes]]
+offset = 0x19D57D
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D57E
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D57F
+expect = 0xFF
+value = 0x63
+
+[[changes]]
+offset = 0x19D580
+expect = 0xFF
+value = 0x3D
+
+[[changes]]
+offset = 0x19D581
+expect = 0xFF
+value = 0x64
+
+[[changes]]
+offset = 0x19D582
+expect = 0xFF
+value = 0xBC
+
+[[changes]]
+offset = 0x19D583
+expect = 0xFF
+value = 0x66
+
+[[changes]]
+offset = 0x19D584
+expect = 0xFF
+value = 0x79
+
+[[changes]]
+offset = 0x19D585
+expect = 0xFF
+value = 0x48
+
+[[changes]]
+offset = 0x19D586
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D587
+expect = 0xFF
+value = 0x64
+
+[[changes]]
+offset = 0x19D588
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D589
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D58A
+expect = 0xFF
+value = 0x78
+
+[[changes]]
+offset = 0x19D58B
+expect = 0xFF
+value = 0x66
+
+[[changes]]
+offset = 0x19D58C
+expect = 0xFF
+value = 0x03
+
+[[changes]]
+offset = 0x19D58D
+expect = 0xFF
+value = 0x26
+
+[[changes]]
+offset = 0x19D58E
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D58F
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D590
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D591
+expect = 0xFF
+value = 0x06
+
+[[changes]]
+offset = 0x19D592
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D593
+expect = 0xFF
+value = 0x0E
+
+[[changes]]
+offset = 0x19D594
+expect = 0xFF
+value = 0x30
+
+[[changes]]
+offset = 0x19D595
+expect = 0xFF
+value = 0x38
+
+[[changes]]
+offset = 0x19D596
+expect = 0xFF
+value = 0x0A
+
+[[changes]]
+offset = 0x19D597
+expect = 0xFF
+value = 0x30
+
+[[changes]]
+offset = 0x19D598
+expect = 0xFF
+value = 0x78
+
+[[changes]]
+offset = 0x19D599
+expect = 0xFF
+value = 0x64
+
+[[changes]]
+offset = 0x19D59A
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D59B
+expect = 0xFF
+value = 0x21
+
+[[changes]]
+offset = 0x19D59C
+expect = 0xFF
+value = 0xB9
+
+[[changes]]
+offset = 0x19D59D
+expect = 0xFF
+value = 0x64
+
+[[changes]]
+offset = 0x19D59E
+expect = 0xFF
+value = 0x03
+
+[[changes]]
+offset = 0x19D59F
+expect = 0xFF
+value = 0x2E
+
+[[changes]]
+offset = 0x19D5A0
+expect = 0xFF
+value = 0x05
+
+[[changes]]
+offset = 0x19D5A1
+expect = 0xFF
+value = 0xD1
+
+[[changes]]
+offset = 0x19D5A2
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D5A3
+expect = 0xFF
+value = 0x21
+
+[[changes]]
+offset = 0x19D5A4
+expect = 0xFF
+value = 0xF9
+
+[[changes]]
+offset = 0x19D5A5
+expect = 0xFF
+value = 0x66
+
+[[changes]]
+offset = 0x19D5A7
+expect = 0xFF
+value = 0xF7
+
+[[changes]]
+offset = 0x19D5A8
+expect = 0xFF
+value = 0xC8
+
+[[changes]]
+offset = 0x19D5AA
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D5AB
+expect = 0xFF
+value = 0x28
+
+[[changes]]
+offset = 0x19D5AC
+expect = 0xFF
+value = 0x1C
+
+[[changes]]
+offset = 0x19D5AD
+expect = 0xFF
+value = 0xD1
+
+[[changes]]
+offset = 0x19D5AE
+expect = 0xFF
+value = 0x78
+
+[[changes]]
+offset = 0x19D5AF
+expect = 0xFF
+value = 0x6C
+
+[[changes]]
+offset = 0x19D5B0
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D5B1
+expect = 0xFF
+value = 0x21
+
+[[changes]]
+offset = 0x19D5B2
+expect = 0xFF
+value = 0xB8
+
+[[changes]]
+offset = 0x19D5B3
+expect = 0xFF
+value = 0xF6
+
+[[changes]]
+offset = 0x19D5B4
+expect = 0xFF
+value = 0xB1
+
+[[changes]]
+offset = 0x19D5B5
+expect = 0xFF
+value = 0xFE
+
+[[changes]]
+offset = 0x19D5B6
+expect = 0xFF
+value = 0x78
+
+[[changes]]
+offset = 0x19D5B7
+expect = 0xFF
+value = 0x6F
+
+[[changes]]
+offset = 0x19D5B8
+expect = 0xFF
+value = 0x40
+
+[[changes]]
+offset = 0x19D5B9
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D5BA
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D5BB
+expect = 0xFF
+value = 0x30
+
+[[changes]]
+offset = 0x19D5BC
+expect = 0xFF
+value = 0x78
+
+[[changes]]
+offset = 0x19D5BD
+expect = 0xFF
+value = 0x67
+
+[[changes]]
+offset = 0x19D5BE
+expect = 0xFF
+value = 0x78
+
+[[changes]]
+offset = 0x19D5BF
+expect = 0xFF
+value = 0x6C
+
+[[changes]]
+offset = 0x19D5C0
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D5C1
+expect = 0xFF
+value = 0x21
+
+[[changes]]
+offset = 0x19D5C2
+expect = 0xFF
+value = 0xB9
+
+[[changes]]
+offset = 0x19D5C3
+expect = 0xFF
+value = 0x64
+
+[[changes]]
+offset = 0x19D5C4
+expect = 0xFF
+value = 0xB8
+
+[[changes]]
+offset = 0x19D5C5
+expect = 0xFF
+value = 0xF6
+
+[[changes]]
+offset = 0x19D5C6
+expect = 0xFF
+value = 0xA8
+
+[[changes]]
+offset = 0x19D5C7
+expect = 0xFF
+value = 0xFE
+
+[[changes]]
+offset = 0x19D5C8
+expect = 0xFF
+value = 0x78
+
+[[changes]]
+offset = 0x19D5C9
+expect = 0xFF
+value = 0x6F
+
+[[changes]]
+offset = 0x19D5CA
+expect = 0xFF
+value = 0x40
+
+[[changes]]
+offset = 0x19D5CB
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D5CC
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D5CD
+expect = 0xFF
+value = 0x30
+
+[[changes]]
+offset = 0x19D5CE
+expect = 0xFF
+value = 0x78
+
+[[changes]]
+offset = 0x19D5CF
+expect = 0xFF
+value = 0x67
+
+[[changes]]
+offset = 0x19D5D0
+expect = 0xFF
+value = 0x38
+
+[[changes]]
+offset = 0x19D5D1
+expect = 0xFF
+value = 0x6F
+
+[[changes]]
+offset = 0x19D5D2
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D5D3
+expect = 0xFF
+value = 0x30
+
+[[changes]]
+offset = 0x19D5D4
+expect = 0xFF
+value = 0x38
+
+[[changes]]
+offset = 0x19D5D5
+expect = 0xFF
+value = 0x67
+
+[[changes]]
+offset = 0x19D5D6
+expect = 0xFF
+value = 0x24
+
+[[changes]]
+offset = 0x19D5D7
+expect = 0xFF
+value = 0x0A
+
+[[changes]]
+offset = 0x19D5D8
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D5D9
+expect = 0xFF
+value = 0x3E
+
+[[changes]]
+offset = 0x19D5DA
+expect = 0xFF
+value = 0xD8
+
+[[changes]]
+offset = 0x19D5DB
+expect = 0xFF
+value = 0xD1
+
+[[changes]]
+offset = 0x19D5DC
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D5DD
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D5DE
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D5DF
+expect = 0xFF
+value = 0x64
+
+[[changes]]
+offset = 0x19D5E1
+expect = 0xFF
+value = 0xF7
+
+[[changes]]
+offset = 0x19D5E2
+expect = 0xFF
+value = 0x52
+
+[[changes]]
+offset = 0x19D5E4
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D5E5
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D5E6
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D5E7
+expect = 0xFF
+value = 0xBD
+
+[[changes]]
+offset = 0x19D5E8
+expect = 0xFF
+value = 0x02
+
+[[changes]]
+offset = 0x19D5E9
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D5EA
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D5EB
+expect = 0xFF
+value = 0x64
+
+[[changes]]
+offset = 0x19D5ED
+expect = 0xFF
+value = 0xF7
+
+[[changes]]
+offset = 0x19D5EE
+expect = 0xFF
+value = 0x4C
+
+[[changes]]
+offset = 0x19D5F0
+expect = 0xFF
+value = 0x02
+
+[[changes]]
+offset = 0x19D5F1
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D5F2
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D5F3
+expect = 0xFF
+value = 0xBD
+
+[[changes]]
+offset = 0x19D5F4
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D5F5
+expect = 0xFF
+value = 0xB5
+
+[[changes]]
+offset = 0x19D5F6
+expect = 0xFF
+value = 0x04
+
+[[changes]]
+offset = 0x19D5F7
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D5F9
+expect = 0xFF
+value = 0xF7
+
+[[changes]]
+offset = 0x19D5FA
+expect = 0xFF
+value = 0xEE
+
+[[changes]]
+offset = 0x19D5FB
+expect = 0xFF
+value = 0xFE
+
+[[changes]]
+offset = 0x19D5FD
+expect = 0xFF
+value = 0xF7
+
+[[changes]]
+offset = 0x19D5FE
+expect = 0xFF
+value = 0x35
+
+[[changes]]
+offset = 0x19D600
+expect = 0xFF
+value = 0x51
+
+[[changes]]
+offset = 0x19D601
+expect = 0xFF
+value = 0x4D
+
+[[changes]]
+offset = 0x19D602
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D603
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D604
+expect = 0xFF
+value = 0xE8
+
+[[changes]]
+offset = 0x19D605
+expect = 0xFF
+value = 0x63
+
+[[changes]]
+offset = 0x19D606
+expect = 0xFF
+value = 0x2C
+
+[[changes]]
+offset = 0x19D607
+expect = 0xFF
+value = 0x64
+
+[[changes]]
+offset = 0x19D608
+expect = 0xFF
+value = 0x58
+
+[[changes]]
+offset = 0x19D609
+expect = 0xFF
+value = 0x48
+
+[[changes]]
+offset = 0x19D60A
+expect = 0xFF
+value = 0xE8
+
+[[changes]]
+offset = 0x19D60B
+expect = 0xFF
+value = 0x62
+
+[[changes]]
+offset = 0x19D60C
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D60D
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D60E
+expect = 0xFF
+value = 0x68
+
+[[changes]]
+offset = 0x19D60F
+expect = 0xFF
+value = 0x63
+
+[[changes]]
+offset = 0x19D610
+expect = 0xFF
+value = 0x68
+
+[[changes]]
+offset = 0x19D611
+expect = 0xFF
+value = 0x66
+
+[[changes]]
+offset = 0x19D612
+expect = 0xFF
+value = 0x03
+
+[[changes]]
+offset = 0x19D613
+expect = 0xFF
+value = 0x27
+
+[[changes]]
+offset = 0x19D614
+expect = 0xFF
+value = 0x68
+
+[[changes]]
+offset = 0x19D615
+expect = 0xFF
+value = 0x6B
+
+[[changes]]
+offset = 0x19D616
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D617
+expect = 0xFF
+value = 0x30
+
+[[changes]]
+offset = 0x19D618
+expect = 0xFF
+value = 0x68
+
+[[changes]]
+offset = 0x19D619
+expect = 0xFF
+value = 0x63
+
+[[changes]]
+offset = 0x19D61A
+expect = 0xFF
+value = 0x53
+
+[[changes]]
+offset = 0x19D61B
+expect = 0xFF
+value = 0x48
+
+[[changes]]
+offset = 0x19D61C
+expect = 0xFF
+value = 0x51
+
+[[changes]]
+offset = 0x19D61D
+expect = 0xFF
+value = 0x49
+
+[[changes]]
+offset = 0x19D61E
+expect = 0xFF
+value = 0x50
+
+[[changes]]
+offset = 0x19D61F
+expect = 0xFF
+value = 0x4A
+
+[[changes]]
+offset = 0x19D620
+expect = 0xFF
+value = 0x73
+
+[[changes]]
+offset = 0x19D621
+expect = 0xFF
+value = 0xF6
+
+[[changes]]
+offset = 0x19D622
+expect = 0xFF
+value = 0xD3
+
+[[changes]]
+offset = 0x19D623
+expect = 0xFF
+value = 0xFE
+
+[[changes]]
+offset = 0x19D624
+expect = 0xFF
+value = 0x52
+
+[[changes]]
+offset = 0x19D625
+expect = 0xFF
+value = 0x48
+
+[[changes]]
+offset = 0x19D626
+expect = 0xFF
+value = 0x4F
+
+[[changes]]
+offset = 0x19D627
+expect = 0xFF
+value = 0x49
+
+[[changes]]
+offset = 0x19D628
+expect = 0xFF
+value = 0x4D
+
+[[changes]]
+offset = 0x19D629
+expect = 0xFF
+value = 0x4A
+
+[[changes]]
+offset = 0x19D62A
+expect = 0xFF
+value = 0x73
+
+[[changes]]
+offset = 0x19D62B
+expect = 0xFF
+value = 0xF6
+
+[[changes]]
+offset = 0x19D62C
+expect = 0xFF
+value = 0xCE
+
+[[changes]]
+offset = 0x19D62D
+expect = 0xFF
+value = 0xFE
+
+[[changes]]
+offset = 0x19D62E
+expect = 0xFF
+value = 0x4E
+
+[[changes]]
+offset = 0x19D62F
+expect = 0xFF
+value = 0x4B
+
+[[changes]]
+offset = 0x19D630
+expect = 0xFF
+value = 0x4F
+
+[[changes]]
+offset = 0x19D631
+expect = 0xFF
+value = 0x4C
+
+[[changes]]
+offset = 0x19D632
+expect = 0xFF
+value = 0x50
+
+[[changes]]
+offset = 0x19D633
+expect = 0xFF
+value = 0x4E
+
+[[changes]]
+offset = 0x19D634
+expect = 0xFF
+value = 0x18
+
+[[changes]]
+offset = 0x19D635
+expect = 0xFF
+value = 0x68
+
+[[changes]]
+offset = 0x19D636
+expect = 0xFF
+value = 0x21
+
+[[changes]]
+offset = 0x19D637
+expect = 0xFF
+value = 0x68
+
+[[changes]]
+offset = 0x19D638
+expect = 0xFF
+value = 0x88
+
+[[changes]]
+offset = 0x19D639
+expect = 0xFF
+value = 0x42
+
+[[changes]]
+offset = 0x19D63A
+expect = 0xFF
+value = 0x04
+
+[[changes]]
+offset = 0x19D63B
+expect = 0xFF
+value = 0xD1
+
+[[changes]]
+offset = 0x19D63C
+expect = 0xFF
+value = 0x04
+
+[[changes]]
+offset = 0x19D63D
+expect = 0xFF
+value = 0x33
+
+[[changes]]
+offset = 0x19D63E
+expect = 0xFF
+value = 0x04
+
+[[changes]]
+offset = 0x19D63F
+expect = 0xFF
+value = 0x34
+
+[[changes]]
+offset = 0x19D640
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D641
+expect = 0xFF
+value = 0x3E
+
+[[changes]]
+offset = 0x19D642
+expect = 0xFF
+value = 0xF7
+
+[[changes]]
+offset = 0x19D643
+expect = 0xFF
+value = 0xD1
+
+[[changes]]
+offset = 0x19D644
+expect = 0xFF
+value = 0x09
+
+[[changes]]
+offset = 0x19D645
+expect = 0xFF
+value = 0xE0
+
+[[changes]]
+offset = 0x19D646
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D647
+expect = 0xFF
+value = 0x3F
+
+[[changes]]
+offset = 0x19D648
+expect = 0xFF
+value = 0xE4
+
+[[changes]]
+offset = 0x19D649
+expect = 0xFF
+value = 0xD1
+
+[[changes]]
+offset = 0x19D64A
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D64B
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D64C
+expect = 0xFF
+value = 0xE8
+
+[[changes]]
+offset = 0x19D64D
+expect = 0xFF
+value = 0x62
+
+[[changes]]
+offset = 0x19D64E
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D64F
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D650
+expect = 0xFF
+value = 0x28
+
+[[changes]]
+offset = 0x19D651
+expect = 0xFF
+value = 0x63
+
+[[changes]]
+offset = 0x19D653
+expect = 0xFF
+value = 0xF7
+
+[[changes]]
+offset = 0x19D654
+expect = 0xFF
+value = 0x19
+
+[[changes]]
+offset = 0x19D656
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D657
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D658
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D659
+expect = 0xFF
+value = 0xBD
+
+[[changes]]
+offset = 0x19D65A
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D65B
+expect = 0xFF
+value = 0xF0
+
+[[changes]]
+offset = 0x19D65C
+expect = 0xFF
+value = 0x25
+
+[[changes]]
+offset = 0x19D65D
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D65E
+expect = 0xFF
+value = 0x68
+
+[[changes]]
+offset = 0x19D65F
+expect = 0xFF
+value = 0x66
+
+[[changes]]
+offset = 0x19D660
+expect = 0xFF
+value = 0x41
+
+[[changes]]
+offset = 0x19D661
+expect = 0xFF
+value = 0x48
+
+[[changes]]
+offset = 0x19D662
+expect = 0xFF
+value = 0x3F
+
+[[changes]]
+offset = 0x19D663
+expect = 0xFF
+value = 0x49
+
+[[changes]]
+offset = 0x19D664
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D665
+expect = 0xFF
+value = 0xF0
+
+[[changes]]
+offset = 0x19D666
+expect = 0xFF
+value = 0x0A
+
+[[changes]]
+offset = 0x19D667
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D668
+expect = 0xFF
+value = 0x28
+
+[[changes]]
+offset = 0x19D669
+expect = 0xFF
+value = 0x63
+
+[[changes]]
+offset = 0x19D66A
+expect = 0xFF
+value = 0xA8
+
+[[changes]]
+offset = 0x19D66B
+expect = 0xFF
+value = 0x6A
+
+[[changes]]
+offset = 0x19D66C
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D66D
+expect = 0xFF
+value = 0x30
+
+[[changes]]
+offset = 0x19D66E
+expect = 0xFF
+value = 0xA8
+
+[[changes]]
+offset = 0x19D66F
+expect = 0xFF
+value = 0x62
+
+[[changes]]
+offset = 0x19D670
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D671
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D672
+expect = 0xFF
+value = 0xE8
+
+[[changes]]
+offset = 0x19D673
+expect = 0xFF
+value = 0x62
+
+[[changes]]
+offset = 0x19D675
+expect = 0xFF
+value = 0xF7
+
+[[changes]]
+offset = 0x19D676
+expect = 0xFF
+value = 0x08
+
+[[changes]]
+offset = 0x19D678
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D679
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D67A
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D67B
+expect = 0xFF
+value = 0xBD
+
+[[changes]]
+offset = 0x19D67C
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D67D
+expect = 0xFF
+value = 0xB5
+
+[[changes]]
+offset = 0x19D67E
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D67F
+expect = 0xFF
+value = 0x24
+
+[[changes]]
+offset = 0x19D680
+expect = 0xFF
+value = 0xE4
+
+[[changes]]
+offset = 0x19D681
+expect = 0xFF
+value = 0x43
+
+[[changes]]
+offset = 0x19D682
+expect = 0xFF
+value = 0x05
+
+[[changes]]
+offset = 0x19D683
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D684
+expect = 0xFF
+value = 0x0E
+
+[[changes]]
+offset = 0x19D685
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D686
+expect = 0xFF
+value = 0x3C
+
+[[changes]]
+offset = 0x19D687
+expect = 0xFF
+value = 0x4F
+
+[[changes]]
+offset = 0x19D688
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D689
+expect = 0xFF
+value = 0x2E
+
+[[changes]]
+offset = 0x19D68A
+expect = 0xFF
+value = 0x0A
+
+[[changes]]
+offset = 0x19D68B
+expect = 0xFF
+value = 0xD0
+
+[[changes]]
+offset = 0x19D68C
+expect = 0xFF
+value = 0x28
+
+[[changes]]
+offset = 0x19D68D
+expect = 0xFF
+value = 0x78
+
+[[changes]]
+offset = 0x19D68E
+expect = 0xFF
+value = 0x44
+
+[[changes]]
+offset = 0x19D68F
+expect = 0xFF
+value = 0x40
+
+[[changes]]
+offset = 0x19D690
+expect = 0xFF
+value = 0x08
+
+[[changes]]
+offset = 0x19D691
+expect = 0xFF
+value = 0x21
+
+[[changes]]
+offset = 0x19D692
+expect = 0xFF
+value = 0x64
+
+[[changes]]
+offset = 0x19D693
+expect = 0xFF
+value = 0x08
+
+[[changes]]
+offset = 0x19D694
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D695
+expect = 0xFF
+value = 0xD3
+
+[[changes]]
+offset = 0x19D696
+expect = 0xFF
+value = 0x7C
+
+[[changes]]
+offset = 0x19D697
+expect = 0xFF
+value = 0x40
+
+[[changes]]
+offset = 0x19D698
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D699
+expect = 0xFF
+value = 0x39
+
+[[changes]]
+offset = 0x19D69A
+expect = 0xFF
+value = 0xFA
+
+[[changes]]
+offset = 0x19D69B
+expect = 0xFF
+value = 0xD1
+
+[[changes]]
+offset = 0x19D69C
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D69D
+expect = 0xFF
+value = 0x35
+
+[[changes]]
+offset = 0x19D69E
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D69F
+expect = 0xFF
+value = 0x3E
+
+[[changes]]
+offset = 0x19D6A0
+expect = 0xFF
+value = 0xF2
+
+[[changes]]
+offset = 0x19D6A1
+expect = 0xFF
+value = 0xE7
+
+[[changes]]
+offset = 0x19D6A2
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D6A3
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D6A4
+expect = 0xFF
+value = 0xC0
+
+[[changes]]
+offset = 0x19D6A5
+expect = 0xFF
+value = 0x43
+
+[[changes]]
+offset = 0x19D6A6
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D6A7
+expect = 0xFF
+value = 0xBD
+
+[[changes]]
+offset = 0x19D6A8
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D6A9
+expect = 0xFF
+value = 0xB5
+
+[[changes]]
+offset = 0x19D6AA
+expect = 0xFF
+value = 0x2F
+
+[[changes]]
+offset = 0x19D6AB
+expect = 0xFF
+value = 0x4C
+
+[[changes]]
+offset = 0x19D6AC
+expect = 0xFF
+value = 0x33
+
+[[changes]]
+offset = 0x19D6AD
+expect = 0xFF
+value = 0x4D
+
+[[changes]]
+offset = 0x19D6AE
+expect = 0xFF
+value = 0x30
+
+[[changes]]
+offset = 0x19D6AF
+expect = 0xFF
+value = 0x4E
+
+[[changes]]
+offset = 0x19D6B0
+expect = 0xFF
+value = 0x33
+
+[[changes]]
+offset = 0x19D6B1
+expect = 0xFF
+value = 0x4F
+
+[[changes]]
+offset = 0x19D6B2
+expect = 0xFF
+value = 0xAC
+
+[[changes]]
+offset = 0x19D6B3
+expect = 0xFF
+value = 0x42
+
+[[changes]]
+offset = 0x19D6B4
+expect = 0xFF
+value = 0x16
+
+[[changes]]
+offset = 0x19D6B5
+expect = 0xFF
+value = 0xD0
+
+[[changes]]
+offset = 0x19D6B6
+expect = 0xFF
+value = 0x30
+
+[[changes]]
+offset = 0x19D6B7
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D6B8
+expect = 0xFF
+value = 0x03
+
+[[changes]]
+offset = 0x19D6B9
+expect = 0xFF
+value = 0x30
+
+[[changes]]
+offset = 0x19D6BA
+expect = 0xFF
+value = 0xB8
+
+[[changes]]
+offset = 0x19D6BB
+expect = 0xFF
+value = 0x42
+
+[[changes]]
+offset = 0x19D6BC
+expect = 0xFF
+value = 0x15
+
+[[changes]]
+offset = 0x19D6BD
+expect = 0xFF
+value = 0xD8
+
+[[changes]]
+offset = 0x19D6BE
+expect = 0xFF
+value = 0x21
+
+[[changes]]
+offset = 0x19D6BF
+expect = 0xFF
+value = 0x88
+
+[[changes]]
+offset = 0x19D6C0
+expect = 0xFF
+value = 0x02
+
+[[changes]]
+offset = 0x19D6C1
+expect = 0xFF
+value = 0x34
+
+[[changes]]
+offset = 0x19D6C2
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D6C3
+expect = 0xFF
+value = 0x22
+
+[[changes]]
+offset = 0x19D6C4
+expect = 0xFF
+value = 0xAC
+
+[[changes]]
+offset = 0x19D6C5
+expect = 0xFF
+value = 0x42
+
+[[changes]]
+offset = 0x19D6C6
+expect = 0xFF
+value = 0x07
+
+[[changes]]
+offset = 0x19D6C7
+expect = 0xFF
+value = 0xD0
+
+[[changes]]
+offset = 0x19D6C9
+expect = 0xFF
+value = 0x2A
+
+[[changes]]
+offset = 0x19D6CA
+expect = 0xFF
+value = 0x05
+
+[[changes]]
+offset = 0x19D6CB
+expect = 0xFF
+value = 0xD0
+
+[[changes]]
+offset = 0x19D6CC
+expect = 0xFF
+value = 0x23
+
+[[changes]]
+offset = 0x19D6CD
+expect = 0xFF
+value = 0x88
+
+[[changes]]
+offset = 0x19D6CE
+expect = 0xFF
+value = 0x8B
+
+[[changes]]
+offset = 0x19D6CF
+expect = 0xFF
+value = 0x42
+
+[[changes]]
+offset = 0x19D6D0
+expect = 0xFF
+value = 0x02
+
+[[changes]]
+offset = 0x19D6D1
+expect = 0xFF
+value = 0xD1
+
+[[changes]]
+offset = 0x19D6D2
+expect = 0xFF
+value = 0x02
+
+[[changes]]
+offset = 0x19D6D3
+expect = 0xFF
+value = 0x34
+
+[[changes]]
+offset = 0x19D6D4
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D6D5
+expect = 0xFF
+value = 0x32
+
+[[changes]]
+offset = 0x19D6D6
+expect = 0xFF
+value = 0xF5
+
+[[changes]]
+offset = 0x19D6D7
+expect = 0xFF
+value = 0xE7
+
+[[changes]]
+offset = 0x19D6D8
+expect = 0xFF
+value = 0x32
+
+[[changes]]
+offset = 0x19D6D9
+expect = 0xFF
+value = 0x70
+
+[[changes]]
+offset = 0x19D6DA
+expect = 0xFF
+value = 0x71
+
+[[changes]]
+offset = 0x19D6DB
+expect = 0xFF
+value = 0x70
+
+[[changes]]
+offset = 0x19D6DC
+expect = 0xFF
+value = 0x09
+
+[[changes]]
+offset = 0x19D6DD
+expect = 0xFF
+value = 0x0A
+
+[[changes]]
+offset = 0x19D6DE
+expect = 0xFF
+value = 0xB1
+
+[[changes]]
+offset = 0x19D6DF
+expect = 0xFF
+value = 0x70
+
+[[changes]]
+offset = 0x19D6E0
+expect = 0xFF
+value = 0x03
+
+[[changes]]
+offset = 0x19D6E1
+expect = 0xFF
+value = 0x36
+
+[[changes]]
+offset = 0x19D6E2
+expect = 0xFF
+value = 0xE6
+
+[[changes]]
+offset = 0x19D6E3
+expect = 0xFF
+value = 0xE7
+
+[[changes]]
+offset = 0x19D6E4
+expect = 0xFF
+value = 0x22
+
+[[changes]]
+offset = 0x19D6E5
+expect = 0xFF
+value = 0x48
+
+[[changes]]
+offset = 0x19D6E6
+expect = 0xFF
+value = 0x30
+
+[[changes]]
+offset = 0x19D6E7
+expect = 0xFF
+value = 0x1A
+
+[[changes]]
+offset = 0x19D6E8
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D6E9
+expect = 0xFF
+value = 0xBD
+
+[[changes]]
+offset = 0x19D6EA
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D6EB
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D6EC
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D6ED
+expect = 0xFF
+value = 0xBD
+
+[[changes]]
+offset = 0x19D6EE
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D6EF
+expect = 0xFF
+value = 0xB5
+
+[[changes]]
+offset = 0x19D6F0
+expect = 0xFF
+value = 0x04
+
+[[changes]]
+offset = 0x19D6F1
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D6F2
+expect = 0xFF
+value = 0x0D
+
+[[changes]]
+offset = 0x19D6F3
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D6F4
+expect = 0xFF
+value = 0x16
+
+[[changes]]
+offset = 0x19D6F5
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D6F6
+expect = 0xFF
+value = 0x23
+
+[[changes]]
+offset = 0x19D6F7
+expect = 0xFF
+value = 0x4F
+
+[[changes]]
+offset = 0x19D6F8
+expect = 0xFF
+value = 0xBD
+
+[[changes]]
+offset = 0x19D6F9
+expect = 0xFF
+value = 0x42
+
+[[changes]]
+offset = 0x19D6FA
+expect = 0xFF
+value = 0x0D
+
+[[changes]]
+offset = 0x19D6FB
+expect = 0xFF
+value = 0xD3
+
+[[changes]]
+offset = 0x19D6FC
+expect = 0xFF
+value = 0x2B
+
+[[changes]]
+offset = 0x19D6FD
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D6FE
+expect = 0xFF
+value = 0x9B
+
+[[changes]]
+offset = 0x19D6FF
+expect = 0xFF
+value = 0x19
+
+[[changes]]
+offset = 0x19D700
+expect = 0xFF
+value = 0x0A
+
+[[changes]]
+offset = 0x19D701
+expect = 0xFF
+value = 0xD2
+
+[[changes]]
+offset = 0x19D702
+expect = 0xFF
+value = 0x21
+
+[[changes]]
+offset = 0x19D703
+expect = 0xFF
+value = 0x48
+
+[[changes]]
+offset = 0x19D704
+expect = 0xFF
+value = 0x83
+
+[[changes]]
+offset = 0x19D705
+expect = 0xFF
+value = 0x42
+
+[[changes]]
+offset = 0x19D706
+expect = 0xFF
+value = 0x07
+
+[[changes]]
+offset = 0x19D707
+expect = 0xFF
+value = 0xD8
+
+[[changes]]
+offset = 0x19D708
+expect = 0xFF
+value = 0xE9
+
+[[changes]]
+offset = 0x19D709
+expect = 0xFF
+value = 0x1B
+
+[[changes]]
+offset = 0x19D70A
+expect = 0xFF
+value = 0x0F
+
+[[changes]]
+offset = 0x19D70B
+expect = 0xFF
+value = 0x48
+
+[[changes]]
+offset = 0x19D70C
+expect = 0xFF
+value = 0x09
+
+[[changes]]
+offset = 0x19D70D
+expect = 0xFF
+value = 0x18
+
+[[changes]]
+offset = 0x19D70E
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D70F
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D710
+expect = 0xFF
+value = 0x32
+
+[[changes]]
+offset = 0x19D711
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D712
+expect = 0xFF
+value = 0x73
+
+[[changes]]
+offset = 0x19D713
+expect = 0xFF
+value = 0xF6
+
+[[changes]]
+offset = 0x19D714
+expect = 0xFF
+value = 0x5A
+
+[[changes]]
+offset = 0x19D715
+expect = 0xFF
+value = 0xFE
+
+[[changes]]
+offset = 0x19D716
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D717
+expect = 0xFF
+value = 0xBD
+
+[[changes]]
+offset = 0x19D718
+expect = 0xFF
+value = 0x1C
+
+[[changes]]
+offset = 0x19D719
+expect = 0xFF
+value = 0x4F
+
+[[changes]]
+offset = 0x19D71A
+expect = 0xFF
+value = 0xBD
+
+[[changes]]
+offset = 0x19D71B
+expect = 0xFF
+value = 0x42
+
+[[changes]]
+offset = 0x19D71C
+expect = 0xFF
+value = 0x0D
+
+[[changes]]
+offset = 0x19D71D
+expect = 0xFF
+value = 0xD3
+
+[[changes]]
+offset = 0x19D71E
+expect = 0xFF
+value = 0x2B
+
+[[changes]]
+offset = 0x19D71F
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D720
+expect = 0xFF
+value = 0x9B
+
+[[changes]]
+offset = 0x19D721
+expect = 0xFF
+value = 0x19
+
+[[changes]]
+offset = 0x19D722
+expect = 0xFF
+value = 0x0A
+
+[[changes]]
+offset = 0x19D723
+expect = 0xFF
+value = 0xD2
+
+[[changes]]
+offset = 0x19D724
+expect = 0xFF
+value = 0x1A
+
+[[changes]]
+offset = 0x19D725
+expect = 0xFF
+value = 0x48
+
+[[changes]]
+offset = 0x19D726
+expect = 0xFF
+value = 0x83
+
+[[changes]]
+offset = 0x19D727
+expect = 0xFF
+value = 0x42
+
+[[changes]]
+offset = 0x19D728
+expect = 0xFF
+value = 0x07
+
+[[changes]]
+offset = 0x19D729
+expect = 0xFF
+value = 0xD8
+
+[[changes]]
+offset = 0x19D72A
+expect = 0xFF
+value = 0xE9
+
+[[changes]]
+offset = 0x19D72B
+expect = 0xFF
+value = 0x1B
+
+[[changes]]
+offset = 0x19D72C
+expect = 0xFF
+value = 0x10
+
+[[changes]]
+offset = 0x19D72D
+expect = 0xFF
+value = 0x48
+
+[[changes]]
+offset = 0x19D72E
+expect = 0xFF
+value = 0x09
+
+[[changes]]
+offset = 0x19D72F
+expect = 0xFF
+value = 0x18
+
+[[changes]]
+offset = 0x19D730
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D731
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D732
+expect = 0xFF
+value = 0x32
+
+[[changes]]
+offset = 0x19D733
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D734
+expect = 0xFF
+value = 0x73
+
+[[changes]]
+offset = 0x19D735
+expect = 0xFF
+value = 0xF6
+
+[[changes]]
+offset = 0x19D736
+expect = 0xFF
+value = 0x49
+
+[[changes]]
+offset = 0x19D737
+expect = 0xFF
+value = 0xFE
+
+[[changes]]
+offset = 0x19D738
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D739
+expect = 0xFF
+value = 0xBD
+
+[[changes]]
+offset = 0x19D73A
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D73B
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D73C
+expect = 0xFF
+value = 0x29
+
+[[changes]]
+offset = 0x19D73D
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D73E
+expect = 0xFF
+value = 0x32
+
+[[changes]]
+offset = 0x19D73F
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D740
+expect = 0xFF
+value = 0x73
+
+[[changes]]
+offset = 0x19D741
+expect = 0xFF
+value = 0xF6
+
+[[changes]]
+offset = 0x19D742
+expect = 0xFF
+value = 0x43
+
+[[changes]]
+offset = 0x19D743
+expect = 0xFF
+value = 0xFE
+
+[[changes]]
+offset = 0x19D744
+expect = 0xFF
+value = 0xF8
+
+[[changes]]
+offset = 0x19D745
+expect = 0xFF
+value = 0xBD
+
+[[changes]]
+offset = 0x19D746
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D747
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D748
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D749
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D74A
+expect = 0xFF
+value = 0x1A
+
+[[changes]]
+offset = 0x19D74B
+expect = 0xFF
+value = 0xC0
+
+[[changes]]
+offset = 0x19D74C
+expect = 0xFF
+value = 0x44
+
+[[changes]]
+offset = 0x19D74D
+expect = 0xFF
+value = 0x37
+
+[[changes]]
+offset = 0x19D74E
+expect = 0xFF
+value = 0x35
+
+[[changes]]
+offset = 0x19D74F
+expect = 0xFF
+value = 0x41
+
+[[changes]]
+offset = 0x19D750
+expect = 0xFF
+value = 0x52
+
+[[changes]]
+offset = 0x19D751
+expect = 0xFF
+value = 0x4C
+
+[[changes]]
+offset = 0x19D752
+expect = 0xFF
+value = 0x45
+
+[[changes]]
+offset = 0x19D753
+expect = 0xFF
+value = 0x33
+
+[[changes]]
+offset = 0x19D754
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D755
+expect = 0xFF
+value = 0x53
+
+[[changes]]
+offset = 0x19D756
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D757
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D758
+expect = 0xFF
+value = 0xE0
+
+[[changes]]
+offset = 0x19D759
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D75A
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D75B
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D75C
+expect = 0xFF
+value = 0x52
+
+[[changes]]
+offset = 0x19D75D
+expect = 0xFF
+value = 0x35
+
+[[changes]]
+offset = 0x19D75E
+expect = 0xFF
+value = 0x36
+
+[[changes]]
+offset = 0x19D75F
+expect = 0xFF
+value = 0x35
+
+[[changes]]
+offset = 0x19D760
+expect = 0xFF
+value = 0x80
+
+[[changes]]
+offset = 0x19D761
+expect = 0xFF
+value = 0x51
+
+[[changes]]
+offset = 0x19D762
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D763
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D764
+expect = 0xFF
+value = 0x40
+
+[[changes]]
+offset = 0x19D765
+expect = 0xFF
+value = 0x9A
+
+[[changes]]
+offset = 0x19D766
+expect = 0xFF
+value = 0x34
+
+[[changes]]
+offset = 0x19D767
+expect = 0xFF
+value = 0xC2
+
+[[changes]]
+offset = 0x19D768
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D769
+expect = 0xFF
+value = 0x01
+
+[[changes]]
+offset = 0x19D76A
+expect = 0xFF
+value = 0x1A
+
+[[changes]]
+offset = 0x19D76B
+expect = 0xFF
+value = 0xC0
+
+[[changes]]
+offset = 0x19D770
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D771
+expect = 0xFF
+value = 0x53
+
+[[changes]]
+offset = 0x19D772
+expect = 0xFF
+value = 0x1B
+
+[[changes]]
+offset = 0x19D773
+expect = 0xFF
+value = 0xC0
+
+[[changes]]
+offset = 0x19D774
+expect = 0xFF
+value = 0x60
+
+[[changes]]
+offset = 0x19D775
+expect = 0xFF
+value = 0x54
+
+[[changes]]
+offset = 0x19D776
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D777
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D778
+expect = 0xFF
+value = 0x20
+
+[[changes]]
+offset = 0x19D779
+expect = 0xFF
+value = 0x83
+
+[[changes]]
+offset = 0x19D77A
+expect = 0xFF
+value = 0xB8
+
+[[changes]]
+offset = 0x19D77B
+expect = 0xFF
+value = 0xED
+
+[[changes]]
+offset = 0x19D77C
+expect = 0xFF
+value = 0x80
+
+[[changes]]
+offset = 0x19D77D
+expect = 0xFF
+value = 0x52
+
+[[changes]]
+offset = 0x19D77E
+expect = 0xFF
+value = 0x1B
+
+[[changes]]
+offset = 0x19D77F
+expect = 0xFF
+value = 0xC0
+
+[[changes]]
+offset = 0x19D780
+expect = 0xFF
+value = 0x80
+
+[[changes]]
+offset = 0x19D781
+expect = 0xFF
+value = 0xA4
+
+[[changes]]
+offset = 0x19D782
+expect = 0xFF
+value = 0x1C
+
+[[changes]]
+offset = 0x19D783
+expect = 0xFF
+value = 0xC0
+
+[[changes]]
+offset = 0x19D784
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D785
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D786
+expect = 0xFF
+value = 0xF0
+
+[[changes]]
+offset = 0x19D787
+expect = 0xFF
+value = 0xC0
+
+[[changes]]
+offset = 0x19D788
+expect = 0xFF
+value = 0x80
+
+[[changes]]
+offset = 0x19D789
+expect = 0xFF
+value = 0x52
+
+[[changes]]
+offset = 0x19D78A
+expect = 0xFF
+value = 0xF1
+
+[[changes]]
+offset = 0x19D78B
+expect = 0xFF
+value = 0xC0
+
+[[changes]]
+offset = 0x19D78C
+expect = 0xFF
+value = 0x00
+
+[[changes]]
+offset = 0x19D78D
+expect = 0xFF
+value = 0x53
+
+[[changes]]
+offset = 0x19D78E
+expect = 0xFF
+value = 0xF1
+
+[[changes]]
+offset = 0x19D78F
+expect = 0xFF
+value = 0xC0
+
+[[changes]]
+offset = 0x19D790
+expect = 0xFF
+value = 0x80
+
+[[changes]]
+offset = 0x19D791
+expect = 0xFF
+value = 0xA4
+
+[[changes]]
+offset = 0x19D792
+expect = 0xFF
+value = 0xF2
+
+[[changes]]
+offset = 0x19D793
+expect = 0xFF
+value = 0xC0

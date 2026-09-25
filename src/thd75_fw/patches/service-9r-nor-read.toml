@@ -1,0 +1,145 @@
+name = "service-9r-nor-read"
+description = """
+Retarget the existing TH-D75 V1.03 service CAT 9R read handler to copy from
+CPU-visible NOR at 0x60000000 + the request offset, and expand its accepted
+offset window from 0x50000 to 0x200000. This is a 19-byte edit to the stock
+handler: it adds no handler, command-table entry, code cave, dumper, UART path,
+or write/erase operation. The stock source-aware CAT response-routing code,
+256-byte stack buffer, and `9R OOOOOO,LL\\r` grammar remain unchanged. Leaving
+that routing code untouched does not prove service-mode 9R reachability over
+Bluetooth SPP. Qualify USB-C first. On macOS, Bluetooth qualification requires
+reuse of the native IOBluetooth RFCOMM transport already present in the sibling
+Kenwood project. Its fixed baseline currently refuses Bluetooth because a
+canceled native blocking write can outlive its future and make bounded teardown
+impossible; repair and re-audit that transport before qualification. The
+current pyserial path also fails closed as unaudited. Exact service-mode SPP
+remains unqualified.
+
+The range covers the complete two MiB immediately before the official main
+FIRMWARE image at NOR 0x60200000, without assuming internal bootloader
+partition boundaries. This patch is experimental: baseline stock service 9R
+and its maximum response over USB-C before flashing, retain a verified stock
+restore image, and begin a patched-radio test with a one-byte USB-C read.
+"""
+target_firmware = "TH-D75 V1.03 official FIRMWARE"
+
+# Fail closed on the complete source image and both complete instruction
+# windows. The result hashes make accidental changes outside this manifest
+# impossible to emit through either the raw-FIRMWARE or plaintext-KEX path.
+source_sha256 = "193963ca4b7a38392815686893858eec20292b629fe999f10b93a22a3a8e4001"
+result_sha256 = "c7cd9d300a73c984408df39c50d2fb7802f826b7300cb8ffb7122c366c010e91"
+result_kex_sha256 = "fa95a673156c2d47b06a85fd6038682bbe1adfcbd1b7bdfdb7529ecfc1ca9541"
+
+# The repack route is narrower still: accept only the exact official updater,
+# then pin both the re-ciphered resource and the complete replacement EXE.
+source_updater_sha256 = "a76f0c80525c942c983bd62494109e15270380a6b5964d6c2a6b4726331f60ad"
+result_encrypted_resource_sha256 = "4fe12582ea43a1d7debaf97ea6135df7a2d13aa5d68168507f8947a22ac2f0de"
+result_updater_sha256 = "5c4a5661dbabab24db32d542ffb3c5273103c6b4e6eff3f3c42f1da4791b029f"
+change_count = 19
+
+# Full original bound-construction instruction pair:
+#   movs r6,#0xA0; lsls r6,r6,#11        => 0x00050000
+[[contexts]]
+offset = 0x6F85C
+expect = "A0 26 F6 02"
+
+# Full original 28-byte stock-read-and-response block. The final 12 bytes are
+# deliberately included even though they remain unchanged.
+[[contexts]]
+offset = 0x6F8A0
+expect = "02 AA 09 04 09 0C 01 98 A1 F7 B2 FE 01 28 05 D1 00 9A 02 A9 28 00 FF F7 D6 FA 04 E0"
+
+[[changes]]
+offset = 0x6F85C
+expect = 0xA0
+value = 0x80
+
+[[changes]]
+offset = 0x6F85E
+expect = 0xF6
+value = 0xB6
+
+[[changes]]
+offset = 0x6F85F
+expect = 0x02
+value = 0x03
+
+[[changes]]
+offset = 0x6F8A0
+expect = 0x02
+value = 0x60
+
+[[changes]]
+offset = 0x6F8A1
+expect = 0xAA
+value = 0x26
+
+[[changes]]
+offset = 0x6F8A2
+expect = 0x09
+value = 0x36
+
+[[changes]]
+offset = 0x6F8A3
+expect = 0x04
+value = 0x06
+
+[[changes]]
+offset = 0x6F8A4
+expect = 0x09
+value = 0x01
+
+[[changes]]
+offset = 0x6F8A5
+expect = 0x0C
+value = 0x99
+
+[[changes]]
+offset = 0x6F8A6
+expect = 0x01
+value = 0x89
+
+[[changes]]
+offset = 0x6F8A7
+expect = 0x98
+value = 0x19
+
+[[changes]]
+offset = 0x6F8A8
+expect = 0xA1
+value = 0x02
+
+[[changes]]
+offset = 0x6F8A9
+expect = 0xF7
+value = 0xA8
+
+[[changes]]
+offset = 0x6F8AA
+expect = 0xB2
+value = 0x00
+
+[[changes]]
+offset = 0x6F8AB
+expect = 0xFE
+value = 0x9A
+
+[[changes]]
+offset = 0x6F8AC
+expect = 0x01
+value = 0xA1
+
+[[changes]]
+offset = 0x6F8AD
+expect = 0x28
+value = 0xF7
+
+[[changes]]
+offset = 0x6F8AE
+expect = 0x05
+value = 0x8D
+
+[[changes]]
+offset = 0x6F8AF
+expect = 0xD1
+value = 0xFD

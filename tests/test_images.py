@@ -43,9 +43,11 @@ def _make_image_db(png_count: int) -> bytes:
 
 
 class TestLoad:
-    """Database-level invariants: image count, header decoding, and
-    explicit rejection of malformed inputs (out-of-range offsets,
-    wrong table-offset field)."""
+    """Database-level invariants.
+
+    Covers the image count, header decoding, and explicit rejection of
+    malformed inputs (out-of-range offsets, wrong table-offset field).
+    """
 
     def test_load_returns_one_image_per_offset_table_entry(self) -> None:
         database = load(_make_image_db(3))
@@ -61,7 +63,7 @@ class TestLoad:
 
     def test_too_small_raises(self) -> None:
         with pytest.raises(ValueError, match="too small"):
-            load(b"\x00" * 10)
+            _ = load(b"\x00" * 10)
 
     def test_implausible_first_offset_raises(self) -> None:
         # First offset points to 0xDEADBEEF which is way past data end.
@@ -69,13 +71,13 @@ class TestLoad:
         struct.pack_into("<I", data, 0x28, 0x30)  # table offset OK
         struct.pack_into("<I", data, 0x30, 0xDEADBEEF)  # bad first PNG offset
         with pytest.raises(ValueError, match="Implausible first-PNG offset"):
-            load(bytes(data))
+            _ = load(bytes(data))
 
     def test_wrong_table_offset_raises(self) -> None:
         data = bytearray(0x100)
         struct.pack_into("<I", data, 0x28, 0x40)  # wrong: expected 0x30
         with pytest.raises(ValueError, match="Unexpected table offset"):
-            load(bytes(data))
+            _ = load(bytes(data))
 
 
 class TestImage:
@@ -97,10 +99,12 @@ class TestImage:
 
 
 class TestFindPngEnd:
-    """Pin the PNG chunk-walker edge cases. The Wave 1 fix replaced
-    a heuristic 'find IEND, trim trailing 0xFF' with a proper chunk
-    walk, but the failure modes (no signature / truncated chunk /
-    missing IEND) deserve explicit tests."""
+    """Pin the PNG chunk-walker edge cases.
+
+    The Wave 1 fix replaced a heuristic 'find IEND, trim trailing 0xFF' with a
+    proper chunk walk, but the failure modes (no signature / truncated chunk /
+    missing IEND) deserve explicit tests.
+    """
 
     def test_walks_to_iend_for_valid_png(self) -> None:
         end = _find_png_end(_MINIMAL_PNG, 0, len(_MINIMAL_PNG))
@@ -126,7 +130,7 @@ class TestFindPngEnd:
         # Signature + a complete IDAT chunk (length=4, type, 4 data bytes,
         # 4 CRC) but no IEND. Walker should finish the loop and return
         # max_end as a fallback (preserves whatever padding follows).
-        idat_chunk = b"\x00\x00\x00\x04IDAT" + b"\x00" * 4 + b"\xCA\xFE\xBA\xBE"
+        idat_chunk = b"\x00\x00\x00\x04IDAT" + b"\x00" * 4 + b"\xca\xfe\xba\xbe"
         no_iend = _PNG_SIGNATURE + idat_chunk
         end = _find_png_end(no_iend, 0, len(no_iend))
         assert end == len(no_iend)
